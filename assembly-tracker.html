@@ -68,6 +68,7 @@
       background: #fff;
       font-size: 0.95rem;
       color: var(--text-primary);
+      width: 100%;
     }
 
     .card {
@@ -355,6 +356,14 @@
             <input type="text" id="assemblyNumber" required data-i18n-placeholder="assemblyPlaceholder" placeholder="Enter assembly number" />
           </div>
           <div>
+            <label for="fileType" data-i18n="fileType">File Type</label>
+            <select id="fileType">
+              <option value="assembly" data-i18n="fileTypeAssembly">Assembly</option>
+              <option value="part" data-i18n="fileTypePart">Part</option>
+              <option value="drawing" data-i18n="fileTypeDrawing">Drawing</option>
+            </select>
+          </div>
+          <div>
             <label for="partNumber" data-i18n="part">Part Number</label>
             <input type="text" id="partNumber" data-i18n-placeholder="partPlaceholder" placeholder="Enter part number" />
           </div>
@@ -389,7 +398,7 @@
 
     <section class="card table-card">
       <div class="table-header">
-        <input type="search" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="Search assemblies or parts" />
+        <input type="search" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="Search assemblies, parts, or file types" />
         <div class="table-info" id="tableInfo"></div>
       </div>
       <div class="table-wrapper">
@@ -397,6 +406,7 @@
           <thead>
             <tr>
               <th class="sortable" data-key="assembly" data-i18n="colAssembly">Assembly Number <span></span></th>
+              <th class="sortable" data-key="fileType" data-i18n="colFileType">File Type <span></span></th>
               <th class="sortable" data-key="part" data-i18n="colPart">Part Number <span></span></th>
               <th class="sortable" data-key="progress" data-i18n="colProgress">Progress (%) <span></span></th>
               <th class="sortable" data-key="created" data-i18n="colCreated">Drawing Created <span></span></th>
@@ -419,6 +429,7 @@
       en: {
         title: "Assembly Progress Tracker",
         assembly: "Assembly Number",
+        fileType: "File Type",
         part: "Part Number",
         progress: "Progress (%)",
         drawingStatus: "Drawing Status",
@@ -435,13 +446,17 @@
         exportCSV: "Export CSV",
         assemblyPlaceholder: "Enter assembly number",
         partPlaceholder: "Enter part number",
-        searchPlaceholder: "Search assemblies or parts",
+        searchPlaceholder: "Search assemblies, parts, or file types",
         colAssembly: "Assembly Number",
+        colFileType: "File Type",
         colPart: "Part Number",
         colProgress: "Progress (%)",
         colCreated: "Drawing Created",
         colChecked: "Drawing Checked",
         colLastUpdate: "Last Update",
+        fileTypeAssembly: "Assembly",
+        fileTypePart: "Part",
+        fileTypeDrawing: "Drawing",
         yes: "Yes",
         no: "No",
         recordSingle: "{count} record",
@@ -450,6 +465,7 @@
       de: {
         title: "Baugruppen-Fortschrittsverfolgung",
         assembly: "Baugruppennummer",
+        fileType: "Dateityp",
         part: "Teilenummer",
         progress: "Fortschritt (%)",
         drawingStatus: "Zeichnungsstatus",
@@ -466,13 +482,17 @@
         exportCSV: "CSV exportieren",
         assemblyPlaceholder: "Baugruppennummer eingeben",
         partPlaceholder: "Teilenummer eingeben",
-        searchPlaceholder: "Baugruppen oder Teile suchen",
+        searchPlaceholder: "Baugruppen, Teile oder Dateitypen suchen",
         colAssembly: "Baugruppennummer",
+        colFileType: "Dateityp",
         colPart: "Teilenummer",
         colProgress: "Fortschritt (%)",
         colCreated: "Zeichnung erstellt",
         colChecked: "Zeichnung geprüft",
         colLastUpdate: "Letzte Aktualisierung",
+        fileTypeAssembly: "Baugruppe",
+        fileTypePart: "Teil",
+        fileTypeDrawing: "Zeichnung",
         yes: "Ja",
         no: "Nein",
         recordSingle: "{count} Eintrag",
@@ -481,6 +501,7 @@
       ar: {
         title: "متابعة تقدم التجميعات",
         assembly: "رقم التجميعة",
+        fileType: "نوع الملف",
         part: "رقم القطعة",
         progress: "نسبة الإنجاز (%)",
         drawingStatus: "حالة المخطط",
@@ -497,13 +518,17 @@
         exportCSV: "تصدير CSV",
         assemblyPlaceholder: "أدخل رقم التجميعة",
         partPlaceholder: "أدخل رقم القطعة",
-        searchPlaceholder: "ابحث في التجميعات أو القطع",
+        searchPlaceholder: "ابحث في التجميعات أو القطع أو نوع الملف",
         colAssembly: "رقم التجميعة",
+        colFileType: "نوع الملف",
         colPart: "رقم القطعة",
         colProgress: "نسبة الإنجاز (%)",
         colCreated: "تم إنشاء المخطط",
         colChecked: "تم تدقيق المخطط",
         colLastUpdate: "آخر تحديث",
+        fileTypeAssembly: "تجميعة",
+        fileTypePart: "قطعة",
+        fileTypeDrawing: "رسم",
         yes: "نعم",
         no: "لا",
         recordSingle: "{count} عنصر",
@@ -519,6 +544,26 @@
     let searchTerm = "";
     let filterMode = "all";
     let currentLanguage = "en";
+    const FILE_TYPE_VALUES = ["assembly", "part", "drawing"];
+    const DEFAULT_FILE_TYPE = FILE_TYPE_VALUES[0];
+    const FILE_TYPE_TRANSLATION_KEYS = {
+      assembly: "fileTypeAssembly",
+      part: "fileTypePart",
+      drawing: "fileTypeDrawing"
+    };
+    const FILE_TYPE_ALIASES = (() => {
+      const map = {};
+      FILE_TYPE_VALUES.forEach(value => {
+        map[value] = value;
+        const key = FILE_TYPE_TRANSLATION_KEYS[value];
+        Object.values(translations).forEach(dict => {
+          if (dict && dict[key]) {
+            map[dict[key].toString().trim().toLowerCase()] = value;
+          }
+        });
+      });
+      return map;
+    })();
 
     const progressInput = document.getElementById("progress");
     const progressPreview = document.getElementById("progressPreview");
@@ -529,10 +574,12 @@
     const tableInfo = document.getElementById("tableInfo");
     const languageSelector = document.getElementById("languageSelector");
     const fileInput = document.getElementById("fileInput");
+    const fileTypeSelect = document.getElementById("fileType");
     const utf8Encoder = new TextEncoder();
     const utf8Decoder = new TextDecoder();
     const COLUMN_HEADERS = [
       "Assembly Number",
+      "File Type",
       "Part Number",
       "Progress (%)",
       "Drawing Created",
@@ -571,12 +618,25 @@
           assemblyData = [];
         }
       }
+      if (Array.isArray(assemblyData)) {
+        assemblyData = assemblyData.map(item => ({
+          assembly: item && item.assembly !== undefined && item.assembly !== null ? String(item.assembly).trim() : "",
+          part: item && item.part !== undefined && item.part !== null ? String(item.part).trim() : "",
+          fileType: normalizeFileType(item ? item.fileType : undefined),
+          progress: normalizeProgress(item ? item.progress : 0),
+          created: !!(item && item.created),
+          checked: !!(item && item.checked),
+          lastUpdate: normalizeDateValue(item ? item.lastUpdate : undefined)
+        })).filter(item => item.assembly);
+      } else {
+        assemblyData = [];
+      }
       if (!assemblyData || !assemblyData.length) {
         const now = new Date().toISOString();
         assemblyData = [
-          { assembly: "ASM-1001", part: "PRT-501", progress: 35, created: true, checked: false, lastUpdate: now },
-          { assembly: "ASM-1002", part: "PRT-545", progress: 62, created: true, checked: true, lastUpdate: now },
-          { assembly: "ASM-1010", part: "PRT-600", progress: 88, created: false, checked: false, lastUpdate: now }
+          { assembly: "ASM-1001", part: "PRT-501", fileType: "assembly", progress: 35, created: true, checked: false, lastUpdate: now },
+          { assembly: "ASM-1002", part: "PRT-545", fileType: "part", progress: 62, created: true, checked: true, lastUpdate: now },
+          { assembly: "ASM-1010", part: "DRW-600", fileType: "drawing", progress: 88, created: false, checked: false, lastUpdate: now }
         ];
         saveToStorage();
       }
@@ -586,10 +646,14 @@
       let data = [...assemblyData];
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
-        data = data.filter(item =>
-          item.assembly.toLowerCase().includes(term) ||
-          (item.part || "").toLowerCase().includes(term)
-        );
+        data = data.filter(item => {
+          const assemblyMatch = item.assembly.toLowerCase().includes(term);
+          const partMatch = (item.part || "").toLowerCase().includes(term);
+          const typeValue = (item.fileType || "").toString().toLowerCase();
+          const typeLabelCurrent = getFileTypeLabel(item.fileType).toLowerCase();
+          const typeLabelEnglish = getFileTypeLabel(item.fileType, "en").toLowerCase();
+          return assemblyMatch || partMatch || typeValue.includes(term) || typeLabelCurrent.includes(term) || typeLabelEnglish.includes(term);
+        });
       }
       if (filterMode === "created") {
         data = data.filter(item => item.created);
@@ -629,6 +693,14 @@
       return lang && lang[key] ? lang[key] : value ? "Yes" : "No";
     }
 
+    function getFileTypeLabel(value, lang = currentLanguage) {
+      const normalized = normalizeFileType(value);
+      const key = FILE_TYPE_TRANSLATION_KEYS[normalized] || FILE_TYPE_TRANSLATION_KEYS[DEFAULT_FILE_TYPE];
+      const targetDict = translations[lang] || translations.en || {};
+      const fallbackDict = translations.en || {};
+      return targetDict[key] || fallbackDict[key] || normalized;
+    }
+
     function updateSortIndicators() {
       document.querySelectorAll("th.sortable").forEach(th => {
         const span = th.querySelector("span");
@@ -655,8 +727,10 @@
         const tr = document.createElement("tr");
         const progressClass = item.progress < 50 ? "status-low" : item.progress < 80 ? "status-mid" : "status-high";
         tr.classList.add(progressClass);
+        const fileTypeLabel = getFileTypeLabel(item.fileType);
         tr.innerHTML = `
           <td>${escapeHTML(item.assembly)}</td>
+          <td>${escapeHTML(fileTypeLabel)}</td>
           <td>${escapeHTML(item.part || "-")}</td>
           <td class="progress-cell">
             <div>${Number(item.progress).toFixed(0)}%</div>
@@ -707,6 +781,7 @@
       document.getElementById("assemblyForm").reset();
       progressInput.value = "0";
       updateProgressPreview();
+      fileTypeSelect.value = DEFAULT_FILE_TYPE;
       document.getElementById("assemblyNumber").focus();
     }
 
@@ -717,6 +792,7 @@
       const progress = Number(progressInput.value);
       const created = document.getElementById("drawingCreated").checked;
       const checked = document.getElementById("drawingChecked").checked;
+      const fileType = normalizeFileType(fileTypeSelect.value);
 
       if (!assembly) {
         showToast("Assembly number is required", "error");
@@ -731,6 +807,7 @@
       const payload = {
         assembly,
         part,
+        fileType,
         progress,
         created,
         checked,
@@ -757,14 +834,24 @@
       progressInput.value = record.progress;
       document.getElementById("drawingCreated").checked = !!record.created;
       document.getElementById("drawingChecked").checked = !!record.checked;
+      fileTypeSelect.value = normalizeFileType(record.fileType);
       updateProgressPreview();
       showToast("Loaded for editing", "info");
     }
 
-    function searchRecords() {
-      searchTerm = searchInput.value.trim();
+    function applySearchTerm(value) {
+      const newTerm = value === undefined || value === null ? "" : String(value);
+      searchTerm = newTerm.trim();
       currentPage = 1;
       renderTable();
+    }
+
+    function searchRecords() {
+      applySearchTerm(searchInput.value);
+    }
+
+    function handleSearchInput(event) {
+      applySearchTerm(event.target.value);
     }
 
     function toggleFilter() {
@@ -792,7 +879,7 @@
         sortDirection = sortDirection === "asc" ? "desc" : "asc";
       } else {
         sortKey = key;
-        sortDirection = key === "assembly" || key === "part" ? "asc" : "desc";
+        sortDirection = key === "assembly" || key === "part" || key === "fileType" ? "asc" : "desc";
       }
       renderTable();
     }
@@ -805,6 +892,7 @@
       const headers = COLUMN_HEADERS;
       const rows = assemblyData.map(item => [
         escapeCSV(item.assembly),
+        escapeCSV(getFileTypeLabel(item.fileType, "en")),
         escapeCSV(item.part || ""),
         item.progress,
         item.created ? "Yes" : "No",
@@ -833,6 +921,14 @@
       const num = Number(value);
       if (!Number.isFinite(num)) return 0;
       return Math.min(100, Math.max(0, num));
+    }
+
+    function normalizeFileType(value) {
+      if (value === undefined || value === null) {
+        return DEFAULT_FILE_TYPE;
+      }
+      const text = String(value).trim().toLowerCase();
+      return FILE_TYPE_ALIASES[text] || DEFAULT_FILE_TYPE;
     }
 
     function parseBooleanValue(value) {
@@ -877,13 +973,14 @@
         if (assemblyRaw === undefined || assemblyRaw === null || assemblyRaw === "") return;
         const assembly = assemblyRaw.toString().trim();
         if (!assembly) return;
-        const partRaw = record[expected[1]];
+        const fileType = normalizeFileType(record[expected[1]]);
+        const partRaw = record[expected[2]];
         const part = partRaw === undefined || partRaw === null ? "" : partRaw.toString().trim();
-        const progress = normalizeProgress(record[expected[2]]);
-        const created = parseBooleanValue(record[expected[3]]);
-        const checked = parseBooleanValue(record[expected[4]]);
-        const lastUpdate = normalizeDateValue(record[expected[5]]);
-        const payload = { assembly, part, progress, created, checked, lastUpdate };
+        const progress = normalizeProgress(record[expected[3]]);
+        const created = parseBooleanValue(record[expected[4]]);
+        const checked = parseBooleanValue(record[expected[5]]);
+        const lastUpdate = normalizeDateValue(record[expected[6]]);
+        const payload = { assembly, part, fileType, progress, created, checked, lastUpdate };
         const existingIndex = assemblyData.findIndex(item => item.assembly.toLowerCase() === assembly.toLowerCase());
         if (existingIndex > -1) {
           assemblyData[existingIndex] = payload;
@@ -906,11 +1003,12 @@
       if (window.XLSX && XLSX.utils && XLSX.utils.json_to_sheet) {
         const rows = assemblyData.map(item => ({
           [COLUMN_HEADERS[0]]: item.assembly,
-          [COLUMN_HEADERS[1]]: item.part || "",
-          [COLUMN_HEADERS[2]]: item.progress,
-          [COLUMN_HEADERS[3]]: item.created ? "Yes" : "No",
-          [COLUMN_HEADERS[4]]: item.checked ? "Yes" : "No",
-          [COLUMN_HEADERS[5]]: item.lastUpdate
+          [COLUMN_HEADERS[1]]: getFileTypeLabel(item.fileType, "en"),
+          [COLUMN_HEADERS[2]]: item.part || "",
+          [COLUMN_HEADERS[3]]: item.progress,
+          [COLUMN_HEADERS[4]]: item.created ? "Yes" : "No",
+          [COLUMN_HEADERS[5]]: item.checked ? "Yes" : "No",
+          [COLUMN_HEADERS[6]]: item.lastUpdate
         }));
         const worksheet = XLSX.utils.json_to_sheet(rows, { header: COLUMN_HEADERS });
         const workbook = XLSX.utils.book_new();
@@ -1130,6 +1228,7 @@
       dataRows.forEach((row, index) => {
         const values = [
           row.assembly,
+          getFileTypeLabel(row.fileType, "en"),
           row.part || "",
           String(row.progress),
           row.created ? "Yes" : "No",
@@ -1365,7 +1464,7 @@
     function searchRecordsOnEnter(event) {
       if (event.key === "Enter") {
         event.preventDefault();
-        searchRecords();
+        applySearchTerm(event.target.value);
       }
     }
 
@@ -1412,6 +1511,7 @@
       event.target.value = "";
     });
     progressInput.addEventListener("input", updateProgressPreview);
+    searchInput.addEventListener("input", handleSearchInput);
     searchInput.addEventListener("keydown", searchRecordsOnEnter);
     languageSelector.addEventListener("change", event => switchLanguage(event.target.value));
     document.querySelectorAll("th.sortable").forEach(th => th.addEventListener("click", handleSort));
