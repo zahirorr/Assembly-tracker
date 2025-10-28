@@ -403,7 +403,15 @@
         <div class="form-grid">
           <div>
             <label for="assemblyNumber" data-i18n="assembly">Assembly Number</label>
-            <input type="text" id="assemblyNumber" required data-i18n-placeholder="assemblyPlaceholder" placeholder="Enter assembly number" />
+            <input
+              type="text"
+              id="assemblyNumber"
+              list="assemblyNumberList"
+              required
+              data-i18n-placeholder="assemblyPlaceholder"
+              placeholder="Enter assembly number"
+            />
+            <datalist id="assemblyNumberList"></datalist>
           </div>
           <div>
             <label for="fileType" data-i18n="fileType">File Type</label>
@@ -455,6 +463,7 @@
         </div>
         <div class="actions">
           <button type="submit" class="primary" data-i18n="save">Save / Update</button>
+          <button type="button" class="danger" id="deleteRecordBtn" data-i18n="deleteRecord">Delete Record</button>
           <button type="button" class="ghost" id="clearBtn" data-i18n="clear">Clear Form</button>
           <button type="button" class="secondary" id="searchBtn" data-i18n="search">Search</button>
           <button type="button" class="ghost" id="filterBtn" data-i18n="filterAll">Filter: All</button>
@@ -514,6 +523,7 @@
         createdBy: "Created By",
         createdByPlaceholder: "Select creator",
         deleteCreator: "Delete Name",
+        deleteRecord: "Delete Record",
         createdDate: "Created Date",
         drawingStatus: "Drawing Status",
         created: "Drawing Created",
@@ -556,6 +566,7 @@
         createdBy: "Erstellt von",
         createdByPlaceholder: "Ersteller auswählen",
         deleteCreator: "Namen löschen",
+        deleteRecord: "Datensatz löschen",
         createdDate: "Erstellungsdatum",
         drawingStatus: "Zeichnungsstatus",
         created: "Zeichnung erstellt",
@@ -598,6 +609,7 @@
         createdBy: "تم الإنشاء بواسطة",
         createdByPlaceholder: "اختر المنشئ",
         deleteCreator: "حذف الاسم",
+        deleteRecord: "حذف السجل",
         createdDate: "تاريخ الإنشاء",
         drawingStatus: "حالة المخطط",
         created: "تم إنشاء المخطط",
@@ -665,6 +677,9 @@
       return map;
     })();
 
+    const assemblyNumberInput = document.getElementById("assemblyNumber");
+    const assemblyNumberList = document.getElementById("assemblyNumberList");
+    const partNumberInput = document.getElementById("partNumber");
     const progressInput = document.getElementById("progress");
     const progressPreview = document.getElementById("progressPreview");
     const progressValue = document.getElementById("progressValue");
@@ -679,6 +694,7 @@
     const createdByInput = document.getElementById("createdByInput");
     const createdByList = document.getElementById("createdByList");
     const deleteCreatorBtn = document.getElementById("deleteCreatorBtn");
+    const deleteRecordBtn = document.getElementById("deleteRecordBtn");
     const createdDateInput = document.getElementById("createdDate");
     const utf8Encoder = new TextEncoder();
     const utf8Decoder = new TextDecoder();
@@ -709,6 +725,26 @@
         const option = document.createElement("option");
         option.value = name;
         createdByList.appendChild(option);
+      });
+    }
+
+    function getSortedAssemblyNumbers() {
+      return Array.from(
+        new Set(
+          (Array.isArray(assemblyData) ? assemblyData : [])
+            .map(item => (item && item.assembly ? String(item.assembly).trim() : ""))
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+    }
+
+    function renderAssemblyNumberList() {
+      if (!assemblyNumberList) return;
+      assemblyNumberList.innerHTML = "";
+      getSortedAssemblyNumbers().forEach(value => {
+        const option = document.createElement("option");
+        option.value = value;
+        assemblyNumberList.appendChild(option);
       });
     }
 
@@ -935,6 +971,7 @@
         ];
         saveToStorage();
       }
+      renderAssemblyNumberList();
     }
 
     function getFilteredData() {
@@ -1101,13 +1138,15 @@
       if (createdDateInput) {
         createdDateInput.value = getTodayDate();
       }
-      document.getElementById("assemblyNumber").focus();
+      if (assemblyNumberInput) {
+        assemblyNumberInput.focus();
+      }
     }
 
     function saveRecord(event) {
       event.preventDefault();
-      const assembly = document.getElementById("assemblyNumber").value.trim();
-      const part = document.getElementById("partNumber").value.trim();
+      const assembly = assemblyNumberInput ? assemblyNumberInput.value.trim() : "";
+      const part = partNumberInput ? partNumberInput.value.trim() : "";
       const progress = Number(progressInput.value);
       const created = document.getElementById("drawingCreated").checked;
       const checked = document.getElementById("drawingChecked").checked;
@@ -1148,15 +1187,48 @@
       if (createdBy) {
         addCreatorName(createdBy);
       }
+      renderAssemblyNumberList();
       renderTable();
       clearForm();
+    }
+
+    function deleteRecord() {
+      const assemblyValue = assemblyNumberInput ? assemblyNumberInput.value.trim() : "";
+      if (!assemblyValue) {
+        showToast("Enter assembly number to delete", "warning");
+        if (assemblyNumberInput) {
+          assemblyNumberInput.focus();
+        }
+        return;
+      }
+      const index = assemblyData.findIndex(item => item.assembly.toLowerCase() === assemblyValue.toLowerCase());
+      if (index === -1) {
+        showToast("Record not found", "error");
+        return;
+      }
+      if (typeof window !== "undefined" && typeof window.confirm === "function") {
+        const confirmed = window.confirm(`Delete record for ${assemblyValue}?`);
+        if (!confirmed) {
+          return;
+        }
+      }
+      assemblyData.splice(index, 1);
+      saveToStorage();
+      renderAssemblyNumberList();
+      renderTable();
+      clearForm();
+      showToast("Record deleted", "success");
     }
 
     function editRow(assembly) {
       const record = assemblyData.find(item => item.assembly === assembly);
       if (!record) return;
-      document.getElementById("assemblyNumber").value = record.assembly;
-      document.getElementById("partNumber").value = record.part || "";
+      if (assemblyNumberInput) {
+        assemblyNumberInput.value = record.assembly;
+      }
+      if (partNumberInput) {
+        partNumberInput.value = record.part || "";
+      }
       progressInput.value = record.progress;
       document.getElementById("drawingCreated").checked = !!record.created;
       document.getElementById("drawingChecked").checked = !!record.checked;
@@ -1337,6 +1409,7 @@
       });
       saveToStorage();
       renderTable();
+      renderAssemblyNumberList();
       return { updated, added, processed: updated + added };
     }
 
@@ -1860,6 +1933,9 @@
     document.getElementById("importBtn").addEventListener("click", () => fileInput.click());
     if (deleteCreatorBtn) {
       deleteCreatorBtn.addEventListener("click", () => removeCreatorName(createdByInput ? createdByInput.value : ""));
+    }
+    if (deleteRecordBtn) {
+      deleteRecordBtn.addEventListener("click", deleteRecord);
     }
     fileInput.addEventListener("change", event => {
       const file = event.target.files[0];
