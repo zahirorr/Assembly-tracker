@@ -110,6 +110,18 @@
       box-shadow: 0 0 0 3px rgba(31, 95, 170, 0.15);
     }
 
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .progress-value {
+      margin-top: 4px;
+      font-weight: 600;
+      text-align: right;
+      color: var(--accent);
+    }
+
     .checkbox-group {
       display: flex;
       align-items: center;
@@ -369,8 +381,23 @@
           </div>
           <div>
             <label for="progress" data-i18n="progress">Progress (%)</label>
-            <input type="number" id="progress" min="0" max="100" value="0" required />
+            <input type="range" id="progress" min="0" max="100" step="1" value="0" />
+            <div class="progress-value" id="progressValue">0%</div>
             <div class="progress-visual"><span id="progressPreview"></span></div>
+          </div>
+          <div>
+            <label for="createdBy" data-i18n="createdBy">Created By</label>
+            <select id="createdBy">
+              <option value="" data-i18n="createdByPlaceholder">Select creator</option>
+              <option value="Alice Johnson">Alice Johnson</option>
+              <option value="Mohammed Kareem">Mohammed Kareem</option>
+              <option value="Lena Fischer">Lena Fischer</option>
+              <option value="Project Team">Project Team</option>
+            </select>
+          </div>
+          <div>
+            <label for="createdDate" data-i18n="createdDate">Created Date</label>
+            <input type="date" id="createdDate" />
           </div>
           <div>
             <label data-i18n="drawingStatus">Drawing Status</label>
@@ -411,6 +438,8 @@
               <th class="sortable" data-key="progress" data-i18n="colProgress">Progress (%) <span></span></th>
               <th class="sortable" data-key="created" data-i18n="colCreated">Drawing Created <span></span></th>
               <th class="sortable" data-key="checked" data-i18n="colChecked">Drawing Checked <span></span></th>
+              <th class="sortable" data-key="createdBy" data-i18n="colCreatedBy">Created By <span></span></th>
+              <th class="sortable" data-key="createdDate" data-i18n="colCreatedDate">Created Date <span></span></th>
               <th class="sortable" data-key="lastUpdate" data-i18n="colLastUpdate">Last Update <span></span></th>
             </tr>
           </thead>
@@ -440,6 +469,9 @@
         fileType: "File Type",
         part: "Part Number",
         progress: "Progress (%)",
+        createdBy: "Created By",
+        createdByPlaceholder: "Select creator",
+        createdDate: "Created Date",
         drawingStatus: "Drawing Status",
         created: "Drawing Created",
         checked: "Drawing Checked",
@@ -461,6 +493,8 @@
         colProgress: "Progress (%)",
         colCreated: "Drawing Created",
         colChecked: "Drawing Checked",
+        colCreatedBy: "Created By",
+        colCreatedDate: "Created Date",
         colLastUpdate: "Last Update",
         fileTypeAssembly: "Assembly",
         fileTypePart: "Part",
@@ -476,6 +510,9 @@
         fileType: "Dateityp",
         part: "Teilenummer",
         progress: "Fortschritt (%)",
+        createdBy: "Erstellt von",
+        createdByPlaceholder: "Ersteller auswählen",
+        createdDate: "Erstellungsdatum",
         drawingStatus: "Zeichnungsstatus",
         created: "Zeichnung erstellt",
         checked: "Zeichnung geprüft",
@@ -497,6 +534,8 @@
         colProgress: "Fortschritt (%)",
         colCreated: "Zeichnung erstellt",
         colChecked: "Zeichnung geprüft",
+        colCreatedBy: "Erstellt von",
+        colCreatedDate: "Erstellungsdatum",
         colLastUpdate: "Letzte Aktualisierung",
         fileTypeAssembly: "Baugruppe",
         fileTypePart: "Teil",
@@ -512,6 +551,9 @@
         fileType: "نوع الملف",
         part: "رقم القطعة",
         progress: "نسبة الإنجاز (%)",
+        createdBy: "تم الإنشاء بواسطة",
+        createdByPlaceholder: "اختر المنشئ",
+        createdDate: "تاريخ الإنشاء",
         drawingStatus: "حالة المخطط",
         created: "تم إنشاء المخطط",
         checked: "تم تدقيق المخطط",
@@ -533,6 +575,8 @@
         colProgress: "نسبة الإنجاز (%)",
         colCreated: "تم إنشاء المخطط",
         colChecked: "تم تدقيق المخطط",
+        colCreatedBy: "تم الإنشاء بواسطة",
+        colCreatedDate: "تاريخ الإنشاء",
         colLastUpdate: "آخر تحديث",
         fileTypeAssembly: "تجميعة",
         fileTypePart: "قطعة",
@@ -575,6 +619,7 @@
 
     const progressInput = document.getElementById("progress");
     const progressPreview = document.getElementById("progressPreview");
+    const progressValue = document.getElementById("progressValue");
     const tableBody = document.getElementById("tableBody");
     const paginationEl = document.getElementById("pagination");
     const filterBtn = document.getElementById("filterBtn");
@@ -583,6 +628,8 @@
     const languageSelector = document.getElementById("languageSelector");
     const fileInput = document.getElementById("fileInput");
     const fileTypeSelect = document.getElementById("fileType");
+    const createdBySelect = document.getElementById("createdBy");
+    const createdDateInput = document.getElementById("createdDate");
     const utf8Encoder = new TextEncoder();
     const utf8Decoder = new TextDecoder();
     const COLUMN_HEADERS = [
@@ -592,12 +639,70 @@
       "Progress (%)",
       "Drawing Created",
       "Drawing Checked",
+      "Created By",
+      "Created Date",
       "Last Update"
     ];
+    const OPTIONAL_COLUMN_HEADERS = ["Created By", "Created Date"];
 
     function updateProgressPreview() {
       const value = Math.max(0, Math.min(100, Number(progressInput.value) || 0));
+      progressInput.value = value.toString();
       progressPreview.style.width = value + "%";
+      if (progressValue) {
+        progressValue.textContent = `${value.toFixed(0)}%`;
+      }
+    }
+
+    function getTodayDate() {
+      const now = new Date();
+      const offsetDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+      return offsetDate.toISOString().slice(0, 10);
+    }
+
+    function normalizeDateOnly(value) {
+      if (value === undefined || value === null) {
+        return "";
+      }
+      if (typeof value === "number" && Number.isFinite(value)) {
+        const base = Date.UTC(1899, 11, 30);
+        const millis = Math.round(value * 86400000);
+        return new Date(base + millis).toISOString().slice(0, 10);
+      }
+      const text = value.toString().trim();
+      if (!text) return "";
+      if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+        return text;
+      }
+      const parsed = new Date(text);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString().slice(0, 10);
+      }
+      return "";
+    }
+
+    function formatDateDisplay(value) {
+      if (!value) return "-";
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toLocaleDateString();
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return value;
+      }
+      return value;
+    }
+
+    function toDateInputValue(value) {
+      if (!value) return "";
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return value;
+      }
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString().slice(0, 10);
+      }
+      return "";
     }
 
     function showToast(message, type = "info") {
@@ -634,6 +739,8 @@
           progress: normalizeProgress(item ? item.progress : 0),
           created: !!(item && item.created),
           checked: !!(item && item.checked),
+          createdBy: item && item.createdBy !== undefined && item.createdBy !== null ? String(item.createdBy).trim() : "",
+          createdDate: normalizeDateOnly(item ? item.createdDate : undefined),
           lastUpdate: normalizeDateValue(item ? item.lastUpdate : undefined)
         })).filter(item => item.assembly);
       } else {
@@ -642,9 +749,39 @@
       if (!assemblyData || !assemblyData.length) {
         const now = new Date().toISOString();
         assemblyData = [
-          { assembly: "ASM-1001", part: "PRT-501", fileType: "assembly", progress: 35, created: true, checked: false, lastUpdate: now },
-          { assembly: "ASM-1002", part: "PRT-545", fileType: "part", progress: 62, created: true, checked: true, lastUpdate: now },
-          { assembly: "ASM-1010", part: "DRW-600", fileType: "drawing", progress: 88, created: false, checked: false, lastUpdate: now }
+          {
+            assembly: "ASM-1001",
+            part: "PRT-501",
+            fileType: "assembly",
+            progress: 35,
+            created: true,
+            checked: false,
+            createdBy: "Alice Johnson",
+            createdDate: getTodayDate(),
+            lastUpdate: now
+          },
+          {
+            assembly: "ASM-1002",
+            part: "PRT-545",
+            fileType: "part",
+            progress: 62,
+            created: true,
+            checked: true,
+            createdBy: "Lena Fischer",
+            createdDate: getTodayDate(),
+            lastUpdate: now
+          },
+          {
+            assembly: "ASM-1010",
+            part: "DRW-600",
+            fileType: "drawing",
+            progress: 88,
+            created: false,
+            checked: false,
+            createdBy: "Project Team",
+            createdDate: getTodayDate(),
+            lastUpdate: now
+          }
         ];
         saveToStorage();
       }
@@ -660,7 +797,17 @@
           const typeValue = (item.fileType || "").toString().toLowerCase();
           const typeLabelCurrent = getFileTypeLabel(item.fileType).toLowerCase();
           const typeLabelEnglish = getFileTypeLabel(item.fileType, "en").toLowerCase();
-          return assemblyMatch || partMatch || typeValue.includes(term) || typeLabelCurrent.includes(term) || typeLabelEnglish.includes(term);
+          const createdByMatch = (item.createdBy || "").toLowerCase().includes(term);
+          const createdDateMatch = (item.createdDate || "").toLowerCase().includes(term);
+          return (
+            assemblyMatch ||
+            partMatch ||
+            typeValue.includes(term) ||
+            typeLabelCurrent.includes(term) ||
+            typeLabelEnglish.includes(term) ||
+            createdByMatch ||
+            createdDateMatch
+          );
         });
       }
       if (filterMode === "created") {
@@ -682,6 +829,11 @@
         } else if (sortKey === "created" || sortKey === "checked") {
           valA = a[sortKey] ? 1 : 0;
           valB = b[sortKey] ? 1 : 0;
+        } else if (sortKey === "createdDate") {
+          valA = new Date(a.createdDate || "").getTime();
+          valB = new Date(b.createdDate || "").getTime();
+          if (Number.isNaN(valA)) valA = 0;
+          if (Number.isNaN(valB)) valB = 0;
         } else if (sortKey === "lastUpdate") {
           valA = new Date(valA).getTime();
           valB = new Date(valB).getTime();
@@ -736,6 +888,7 @@
         const progressClass = item.progress < 50 ? "status-low" : item.progress < 80 ? "status-mid" : "status-high";
         tr.classList.add(progressClass);
         const fileTypeLabel = getFileTypeLabel(item.fileType);
+        const createdDateLabel = formatDateDisplay(item.createdDate);
         tr.innerHTML = `
           <td>${escapeHTML(item.assembly)}</td>
           <td>${escapeHTML(fileTypeLabel)}</td>
@@ -746,6 +899,8 @@
           </td>
           <td>${formatBoolean(item.created)}</td>
           <td>${formatBoolean(item.checked)}</td>
+          <td>${escapeHTML(item.createdBy || "-")}</td>
+          <td>${escapeHTML(createdDateLabel)}</td>
           <td>${escapeHTML(item.lastUpdate)}</td>
         `;
         tr.addEventListener("click", () => editRow(item.assembly));
@@ -790,6 +945,12 @@
       progressInput.value = "0";
       updateProgressPreview();
       fileTypeSelect.value = DEFAULT_FILE_TYPE;
+      if (createdBySelect) {
+        createdBySelect.selectedIndex = 0;
+      }
+      if (createdDateInput) {
+        createdDateInput.value = getTodayDate();
+      }
       document.getElementById("assemblyNumber").focus();
     }
 
@@ -801,6 +962,8 @@
       const created = document.getElementById("drawingCreated").checked;
       const checked = document.getElementById("drawingChecked").checked;
       const fileType = normalizeFileType(fileTypeSelect.value);
+      const createdBy = createdBySelect ? createdBySelect.value.trim() : "";
+      const createdDate = createdDateInput ? normalizeDateOnly(createdDateInput.value || getTodayDate()) : "";
 
       if (!assembly) {
         showToast("Assembly number is required", "error");
@@ -819,6 +982,8 @@
         progress,
         created,
         checked,
+        createdBy,
+        createdDate,
         lastUpdate: new Date().toISOString()
       };
 
@@ -843,6 +1008,20 @@
       document.getElementById("drawingCreated").checked = !!record.created;
       document.getElementById("drawingChecked").checked = !!record.checked;
       fileTypeSelect.value = normalizeFileType(record.fileType);
+      if (createdBySelect) {
+        const exists = Array.from(createdBySelect.options).some(option => option.value === record.createdBy);
+        if (!exists && record.createdBy) {
+          const option = document.createElement("option");
+          option.value = record.createdBy;
+          option.textContent = record.createdBy;
+          createdBySelect.appendChild(option);
+        }
+        createdBySelect.value = record.createdBy || "";
+      }
+      if (createdDateInput) {
+        const normalized = toDateInputValue(record.createdDate) || getTodayDate();
+        createdDateInput.value = normalized;
+      }
       updateProgressPreview();
       showToast("Loaded for editing", "info");
     }
@@ -905,6 +1084,8 @@
         item.progress,
         item.created ? "Yes" : "No",
         item.checked ? "Yes" : "No",
+        escapeCSV(item.createdBy || ""),
+        escapeCSV(item.createdDate || ""),
         item.lastUpdate
       ].join(","));
       const csv = [headers.join(","), ...rows].join("\n");
@@ -971,7 +1152,8 @@
       const expected = COLUMN_HEADERS;
       const first = rows[0];
       const missing = expected.filter(key => !(key in first));
-      if (missing.length) {
+      const requiredMissing = missing.filter(key => !OPTIONAL_COLUMN_HEADERS.includes(key));
+      if (requiredMissing.length) {
         throw new Error("Unexpected column layout");
       }
       let updated = 0;
@@ -987,8 +1169,11 @@
         const progress = normalizeProgress(record[expected[3]]);
         const created = parseBooleanValue(record[expected[4]]);
         const checked = parseBooleanValue(record[expected[5]]);
-        const lastUpdate = normalizeDateValue(record[expected[6]]);
-        const payload = { assembly, part, fileType, progress, created, checked, lastUpdate };
+        const createdByRaw = record[expected[6]];
+        const createdBy = createdByRaw === undefined || createdByRaw === null ? "" : createdByRaw.toString().trim();
+        const createdDate = normalizeDateOnly(record[expected[7]]);
+        const lastUpdate = normalizeDateValue(record[expected[8]]);
+        const payload = { assembly, part, fileType, progress, created, checked, createdBy, createdDate, lastUpdate };
         const existingIndex = assemblyData.findIndex(item => item.assembly.toLowerCase() === assembly.toLowerCase());
         if (existingIndex > -1) {
           assemblyData[existingIndex] = payload;
@@ -1016,7 +1201,9 @@
           [COLUMN_HEADERS[3]]: item.progress,
           [COLUMN_HEADERS[4]]: item.created ? "Yes" : "No",
           [COLUMN_HEADERS[5]]: item.checked ? "Yes" : "No",
-          [COLUMN_HEADERS[6]]: item.lastUpdate
+          [COLUMN_HEADERS[6]]: item.createdBy || "",
+          [COLUMN_HEADERS[7]]: item.createdDate || "",
+          [COLUMN_HEADERS[8]]: item.lastUpdate
         }));
         const worksheet = XLSX.utils.json_to_sheet(rows, { header: COLUMN_HEADERS });
         const workbook = XLSX.utils.book_new();
@@ -1057,7 +1244,13 @@
             const headerRow = (XLSX.utils.sheet_to_json(sheet, { header: 1, range: 0, raw: false })[0] || []).map(cell =>
               cell === undefined || cell === null ? "" : cell.toString()
             );
-            const headerMismatch = COLUMN_HEADERS.some((title, idx) => headerRow[idx] !== title);
+            const headerMismatch = COLUMN_HEADERS.some((title, idx) => {
+              const current = headerRow[idx];
+              if ((current === undefined || current === "") && OPTIONAL_COLUMN_HEADERS.includes(title)) {
+                return false;
+              }
+              return current !== title;
+            });
             if (headerMismatch) {
               throw new Error("Unexpected column layout");
             }
@@ -1241,6 +1434,8 @@
           String(row.progress),
           row.created ? "Yes" : "No",
           row.checked ? "Yes" : "No",
+          row.createdBy || "",
+          row.createdDate || "",
           row.lastUpdate
         ];
         xml += buildRowXML(index + 2, values);
@@ -1525,6 +1720,9 @@
     document.querySelectorAll("th.sortable").forEach(th => th.addEventListener("click", handleSort));
 
     loadData();
+    if (createdDateInput) {
+      createdDateInput.value = getTodayDate();
+    }
     updateProgressPreview();
     renderTable();
     switchLanguage("en");
