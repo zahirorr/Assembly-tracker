@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assembly Progress Tracker</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.20.2/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg-color: #f4f6f8;
+      --card-bg: #ffffff;
+      --accent: #1f5faa;
+      --accent-light: #4f8edb;
+      --text-primary: #1f2933;
+      --text-secondary: #52606d;
+      --border-color: #d9dee7;
+      --danger-bg: #ffe5e5;
+      --warning-bg: #fff5d1;
+      --success-bg: #e0f3e0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg-color);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    body.rtl {
+      direction: rtl;
+    }
+
+    .app-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      background: var(--card-bg);
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(15, 30, 60, 0.08);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.6rem;
+      color: var(--text-primary);
+    }
+
+    select {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: #fff;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(15, 30, 60, 0.08);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text-secondary);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="search"] {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      font-size: 0.95rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="search"]:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(31, 95, 170, 0.15);
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .checkbox-group input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    button {
+      padding: 10px 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 6px 12px rgba(31, 95, 170, 0.25);
+    }
+
+    button.primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(31, 95, 170, 0.28);
+    }
+
+    button.secondary {
+      background: #e8eef6;
+      color: var(--accent);
+    }
+
+    button.ghost {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+    }
+
+    .progress-visual {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 6px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+
+    .progress-visual span {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--accent), var(--accent-light));
+      transition: width 0.3s ease;
+    }
+
+    .table-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border-radius: 10px;
+      box-shadow: inset 0 1px 0 rgba(0, 0, 0, 0.04);
+    }
+
+    thead {
+      background: #f0f4fa;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      box-shadow: 0 3px 6px rgba(15, 30, 60, 0.08);
+    }
+
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.95rem;
+    }
+
+    body.rtl th, body.rtl td {
+      text-align: right;
+    }
+
+    th.sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th.sortable span {
+      margin-left: 6px;
+      font-size: 0.8rem;
+      color: var(--accent);
+    }
+
+    tbody tr {
+      transition: background 0.2s ease;
+      cursor: pointer;
+    }
+
+    tbody tr:hover {
+      background: rgba(31, 95, 170, 0.08);
+    }
+
+    .status-low {
+      background: var(--danger-bg);
+    }
+
+    .status-mid {
+      background: var(--warning-bg);
+    }
+
+    .status-high {
+      background: var(--success-bg);
+    }
+
+    .progress-cell {
+      min-width: 140px;
+    }
+
+    .progress-bar {
+      background: #d7e3f4;
+      border-radius: 8px;
+      overflow: hidden;
+      height: 10px;
+      margin-top: 6px;
+    }
+
+    .progress-bar span {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.3s ease;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .pagination button {
+      padding: 8px 12px;
+      font-size: 0.85rem;
+    }
+
+    .pagination .current {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 9999;
+    }
+
+    body.rtl #toast-container {
+      right: auto;
+      left: 20px;
+    }
+
+    .toast {
+      background: var(--card-bg);
+      border-left: 4px solid var(--accent);
+      padding: 12px 16px;
+      border-radius: 8px;
+      min-width: 220px;
+      box-shadow: 0 6px 16px rgba(15, 30, 60, 0.2);
+      animation: fadeIn 0.3s ease;
+      font-size: 0.9rem;
+    }
+
+    .toast.success { border-left-color: #2e8540; }
+    .toast.warning { border-left-color: #d9822b; }
+    .toast.error { border-left-color: #c92a2a; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        font-size: 0.85rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <h1 data-i18n="title">Assembly Progress Tracker</h1>
+      <select id="languageSelector">
+        <option value="en">English</option>
+        <option value="de">Deutsch</option>
+        <option value="ar">العربية</option>
+      </select>
+    </header>
+
+    <section class="card form-card">
+      <form id="assemblyForm">
+        <div class="form-grid">
+          <div>
+            <label for="assemblyNumber" data-i18n="assembly">Assembly Number</label>
+            <input type="text" id="assemblyNumber" required data-i18n-placeholder="assemblyPlaceholder" placeholder="Enter assembly number" />
+          </div>
+          <div>
+            <label for="partNumber" data-i18n="part">Part Number</label>
+            <input type="text" id="partNumber" data-i18n-placeholder="partPlaceholder" placeholder="Enter part number" />
+          </div>
+          <div>
+            <label for="progress" data-i18n="progress">Progress (%)</label>
+            <input type="number" id="progress" min="0" max="100" value="0" required />
+            <div class="progress-visual"><span id="progressPreview"></span></div>
+          </div>
+          <div>
+            <label data-i18n="drawingStatus">Drawing Status</label>
+            <div class="checkbox-group">
+              <input type="checkbox" id="drawingCreated" />
+              <label for="drawingCreated" data-i18n="created">Drawing Created</label>
+            </div>
+            <div class="checkbox-group">
+              <input type="checkbox" id="drawingChecked" />
+              <label for="drawingChecked" data-i18n="checked">Drawing Checked</label>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button type="submit" class="primary" data-i18n="save">Save / Update</button>
+          <button type="button" class="ghost" id="clearBtn" data-i18n="clear">Clear Form</button>
+          <button type="button" class="secondary" id="searchBtn" data-i18n="search">Search</button>
+          <button type="button" class="ghost" id="filterBtn" data-i18n="filterAll">Filter: All</button>
+          <button type="button" class="ghost" id="importBtn" data-i18n="import">Import Excel</button>
+          <button type="button" class="ghost" id="exportExcelBtn" data-i18n="export">Export Excel</button>
+          <button type="button" class="ghost" id="exportCsvBtn" data-i18n="exportCSV">Export CSV</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card table-card">
+      <div class="table-header">
+        <input type="search" id="searchInput" data-i18n-placeholder="searchPlaceholder" placeholder="Search assemblies or parts" />
+        <div class="table-info" id="tableInfo"></div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable" data-key="assembly" data-i18n="colAssembly">Assembly Number <span></span></th>
+              <th class="sortable" data-key="part" data-i18n="colPart">Part Number <span></span></th>
+              <th class="sortable" data-key="progress" data-i18n="colProgress">Progress (%) <span></span></th>
+              <th class="sortable" data-key="created" data-i18n="colCreated">Drawing Created <span></span></th>
+              <th class="sortable" data-key="checked" data-i18n="colChecked">Drawing Checked <span></span></th>
+              <th class="sortable" data-key="lastUpdate" data-i18n="colLastUpdate">Last Update <span></span></th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </section>
+  </div>
+
+  <input type="file" id="fileInput" accept=".xlsx" style="display:none" />
+  <div id="toast-container"></div>
+
+  <script>
+    const translations = {
+      en: {
+        title: "Assembly Progress Tracker",
+        assembly: "Assembly Number",
+        part: "Part Number",
+        progress: "Progress (%)",
+        drawingStatus: "Drawing Status",
+        created: "Drawing Created",
+        checked: "Drawing Checked",
+        save: "Save / Update",
+        clear: "Clear Form",
+        search: "Search",
+        filterAll: "Filter: All",
+        filterCreated: "Filter: Created",
+        filterChecked: "Filter: Checked",
+        import: "Import Excel",
+        export: "Export Excel",
+        exportCSV: "Export CSV",
+        assemblyPlaceholder: "Enter assembly number",
+        partPlaceholder: "Enter part number",
+        searchPlaceholder: "Search assemblies or parts",
+        colAssembly: "Assembly Number",
+        colPart: "Part Number",
+        colProgress: "Progress (%)",
+        colCreated: "Drawing Created",
+        colChecked: "Drawing Checked",
+        colLastUpdate: "Last Update",
+        yes: "Yes",
+        no: "No",
+        recordSingle: "{count} record",
+        recordPlural: "{count} records"
+      },
+      de: {
+        title: "Baugruppen-Fortschrittsverfolgung",
+        assembly: "Baugruppennummer",
+        part: "Teilenummer",
+        progress: "Fortschritt (%)",
+        drawingStatus: "Zeichnungsstatus",
+        created: "Zeichnung erstellt",
+        checked: "Zeichnung geprüft",
+        save: "Speichern / Aktualisieren",
+        clear: "Formular löschen",
+        search: "Suchen",
+        filterAll: "Filter: Alle",
+        filterCreated: "Filter: Erstellt",
+        filterChecked: "Filter: Geprüft",
+        import: "Excel importieren",
+        export: "Excel exportieren",
+        exportCSV: "CSV exportieren",
+        assemblyPlaceholder: "Baugruppennummer eingeben",
+        partPlaceholder: "Teilenummer eingeben",
+        searchPlaceholder: "Baugruppen oder Teile suchen",
+        colAssembly: "Baugruppennummer",
+        colPart: "Teilenummer",
+        colProgress: "Fortschritt (%)",
+        colCreated: "Zeichnung erstellt",
+        colChecked: "Zeichnung geprüft",
+        colLastUpdate: "Letzte Aktualisierung",
+        yes: "Ja",
+        no: "Nein",
+        recordSingle: "{count} Eintrag",
+        recordPlural: "{count} Einträge"
+      },
+      ar: {
+        title: "متابعة تقدم التجميعات",
+        assembly: "رقم التجميعة",
+        part: "رقم القطعة",
+        progress: "نسبة الإنجاز (%)",
+        drawingStatus: "حالة المخطط",
+        created: "تم إنشاء المخطط",
+        checked: "تم تدقيق المخطط",
+        save: "حفظ / تحديث",
+        clear: "مسح الحقول",
+        search: "بحث",
+        filterAll: "تصفية: الكل",
+        filterCreated: "تصفية: تم الإنشاء",
+        filterChecked: "تصفية: تم التدقيق",
+        import: "استيراد Excel",
+        export: "تصدير Excel",
+        exportCSV: "تصدير CSV",
+        assemblyPlaceholder: "أدخل رقم التجميعة",
+        partPlaceholder: "أدخل رقم القطعة",
+        searchPlaceholder: "ابحث في التجميعات أو القطع",
+        colAssembly: "رقم التجميعة",
+        colPart: "رقم القطعة",
+        colProgress: "نسبة الإنجاز (%)",
+        colCreated: "تم إنشاء المخطط",
+        colChecked: "تم تدقيق المخطط",
+        colLastUpdate: "آخر تحديث",
+        yes: "نعم",
+        no: "لا",
+        recordSingle: "{count} عنصر",
+        recordPlural: "{count} عناصر"
+      }
+    };
+
+    let assemblyData = [];
+    let currentPage = 1;
+    const rowsPerPage = 7;
+    let sortKey = "lastUpdate";
+    let sortDirection = "desc";
+    let searchTerm = "";
+    let filterMode = "all";
+    let currentLanguage = "en";
+
+    const progressInput = document.getElementById("progress");
+    const progressPreview = document.getElementById("progressPreview");
+    const tableBody = document.getElementById("tableBody");
+    const paginationEl = document.getElementById("pagination");
+    const filterBtn = document.getElementById("filterBtn");
+    const searchInput = document.getElementById("searchInput");
+    const tableInfo = document.getElementById("tableInfo");
+    const languageSelector = document.getElementById("languageSelector");
+    const fileInput = document.getElementById("fileInput");
+    const utf8Encoder = new TextEncoder();
+    const utf8Decoder = new TextDecoder();
+    const COLUMN_HEADERS = [
+      "Assembly Number",
+      "Part Number",
+      "Progress (%)",
+      "Drawing Created",
+      "Drawing Checked",
+      "Last Update"
+    ];
+
+    function updateProgressPreview() {
+      const value = Math.max(0, Math.min(100, Number(progressInput.value) || 0));
+      progressPreview.style.width = value + "%";
+    }
+
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(10px)";
+      }, 2800);
+      setTimeout(() => container.removeChild(toast), 3300);
+    }
+
+    function saveToStorage() {
+      localStorage.setItem("assemblyData", JSON.stringify(assemblyData));
+    }
+
+    function loadData() {
+      const stored = localStorage.getItem("assemblyData");
+      if (stored) {
+        try {
+          assemblyData = JSON.parse(stored);
+        } catch (error) {
+          assemblyData = [];
+        }
+      }
+      if (!assemblyData || !assemblyData.length) {
+        const now = new Date().toISOString();
+        assemblyData = [
+          { assembly: "ASM-1001", part: "PRT-501", progress: 35, created: true, checked: false, lastUpdate: now },
+          { assembly: "ASM-1002", part: "PRT-545", progress: 62, created: true, checked: true, lastUpdate: now },
+          { assembly: "ASM-1010", part: "PRT-600", progress: 88, created: false, checked: false, lastUpdate: now }
+        ];
+        saveToStorage();
+      }
+    }
+
+    function getFilteredData() {
+      let data = [...assemblyData];
+      if (searchTerm) {
+        const term = searchTerm.toLowerCase();
+        data = data.filter(item =>
+          item.assembly.toLowerCase().includes(term) ||
+          (item.part || "").toLowerCase().includes(term)
+        );
+      }
+      if (filterMode === "created") {
+        data = data.filter(item => item.created);
+      } else if (filterMode === "checked") {
+        data = data.filter(item => item.checked);
+      }
+      return data;
+    }
+
+    function sortData(data) {
+      const direction = sortDirection === "asc" ? 1 : -1;
+      return data.sort((a, b) => {
+        let valA = a[sortKey];
+        let valB = b[sortKey];
+        if (sortKey === "progress") {
+          valA = Number(valA);
+          valB = Number(valB);
+        } else if (sortKey === "created" || sortKey === "checked") {
+          valA = a[sortKey] ? 1 : 0;
+          valB = b[sortKey] ? 1 : 0;
+        } else if (sortKey === "lastUpdate") {
+          valA = new Date(valA).getTime();
+          valB = new Date(valB).getTime();
+        } else {
+          valA = (valA || "").toString().toLowerCase();
+          valB = (valB || "").toString().toLowerCase();
+        }
+        if (valA < valB) return -1 * direction;
+        if (valA > valB) return 1 * direction;
+        return 0;
+      });
+    }
+
+    function formatBoolean(value) {
+      const key = value ? "yes" : "no";
+      const lang = translations[currentLanguage];
+      return lang && lang[key] ? lang[key] : value ? "Yes" : "No";
+    }
+
+    function updateSortIndicators() {
+      document.querySelectorAll("th.sortable").forEach(th => {
+        const span = th.querySelector("span");
+        if (!span) return;
+        const key = th.getAttribute("data-key");
+        if (key === sortKey) {
+          span.textContent = sortDirection === "asc" ? "▲" : "▼";
+        } else {
+          span.textContent = "";
+        }
+      });
+    }
+
+    function renderTable() {
+      const data = sortData(getFilteredData());
+      const totalRecords = data.length;
+      const totalPages = Math.max(1, Math.ceil(totalRecords / rowsPerPage));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start = (currentPage - 1) * rowsPerPage;
+      const pageItems = data.slice(start, start + rowsPerPage);
+
+      tableBody.innerHTML = "";
+      pageItems.forEach(item => {
+        const tr = document.createElement("tr");
+        const progressClass = item.progress < 50 ? "status-low" : item.progress < 80 ? "status-mid" : "status-high";
+        tr.classList.add(progressClass);
+        tr.innerHTML = `
+          <td>${escapeHTML(item.assembly)}</td>
+          <td>${escapeHTML(item.part || "-")}</td>
+          <td class="progress-cell">
+            <div>${Number(item.progress).toFixed(0)}%</div>
+            <div class="progress-bar"><span style="width:${Math.max(0, Math.min(100, Number(item.progress)))}%"></span></div>
+          </td>
+          <td>${formatBoolean(item.created)}</td>
+          <td>${formatBoolean(item.checked)}</td>
+          <td>${escapeHTML(item.lastUpdate)}</td>
+        `;
+        tr.addEventListener("click", () => editRow(item.assembly));
+        tableBody.appendChild(tr);
+      });
+      updateSortIndicators();
+      renderPagination(totalPages);
+      const dict = translations[currentLanguage];
+      const labelKey = totalRecords === 1 ? "recordSingle" : "recordPlural";
+      const template = dict[labelKey] || "{count} records";
+      tableInfo.textContent = template.replace("{count}", totalRecords);
+    }
+
+    function renderPagination(totalPages) {
+      paginationEl.innerHTML = "";
+      if (totalPages <= 1) return;
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement("button");
+        btn.textContent = i;
+        btn.className = i === currentPage ? "current" : "ghost";
+        btn.addEventListener("click", () => {
+          currentPage = i;
+          renderTable();
+        });
+        paginationEl.appendChild(btn);
+      }
+    }
+
+    function escapeHTML(value) {
+      const text = value === undefined || value === null ? "" : String(value);
+      return text.replace(/[&<>"']/g, c => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[c]);
+    }
+
+    function clearForm() {
+      document.getElementById("assemblyForm").reset();
+      progressInput.value = "0";
+      updateProgressPreview();
+      document.getElementById("assemblyNumber").focus();
+    }
+
+    function saveRecord(event) {
+      event.preventDefault();
+      const assembly = document.getElementById("assemblyNumber").value.trim();
+      const part = document.getElementById("partNumber").value.trim();
+      const progress = Number(progressInput.value);
+      const created = document.getElementById("drawingCreated").checked;
+      const checked = document.getElementById("drawingChecked").checked;
+
+      if (!assembly) {
+        showToast("Assembly number is required", "error");
+        return;
+      }
+      if (Number.isNaN(progress) || progress < 0 || progress > 100) {
+        showToast("Progress must be between 0 and 100", "error");
+        return;
+      }
+
+      const existingIndex = assemblyData.findIndex(item => item.assembly.toLowerCase() === assembly.toLowerCase());
+      const payload = {
+        assembly,
+        part,
+        progress,
+        created,
+        checked,
+        lastUpdate: new Date().toISOString()
+      };
+
+      if (existingIndex > -1) {
+        assemblyData[existingIndex] = payload;
+        showToast("Record updated", "success");
+      } else {
+        assemblyData.push(payload);
+        showToast("Record saved", "success");
+      }
+      saveToStorage();
+      renderTable();
+      clearForm();
+    }
+
+    function editRow(assembly) {
+      const record = assemblyData.find(item => item.assembly === assembly);
+      if (!record) return;
+      document.getElementById("assemblyNumber").value = record.assembly;
+      document.getElementById("partNumber").value = record.part || "";
+      progressInput.value = record.progress;
+      document.getElementById("drawingCreated").checked = !!record.created;
+      document.getElementById("drawingChecked").checked = !!record.checked;
+      updateProgressPreview();
+      showToast("Loaded for editing", "info");
+    }
+
+    function searchRecords() {
+      searchTerm = searchInput.value.trim();
+      currentPage = 1;
+      renderTable();
+    }
+
+    function toggleFilter() {
+      if (filterMode === "all") {
+        filterMode = "created";
+      } else if (filterMode === "created") {
+        filterMode = "checked";
+      } else {
+        filterMode = "all";
+      }
+      updateFilterButton();
+      currentPage = 1;
+      renderTable();
+    }
+
+    function updateFilterButton() {
+      const key = filterMode === "created" ? "filterCreated" : filterMode === "checked" ? "filterChecked" : "filterAll";
+      filterBtn.textContent = translations[currentLanguage][key];
+    }
+
+    function handleSort(event) {
+      const th = event.currentTarget;
+      const key = th.getAttribute("data-key");
+      if (sortKey === key) {
+        sortDirection = sortDirection === "asc" ? "desc" : "asc";
+      } else {
+        sortKey = key;
+        sortDirection = key === "assembly" || key === "part" ? "asc" : "desc";
+      }
+      renderTable();
+    }
+
+    function exportToCSV() {
+      if (!assemblyData.length) {
+        showToast("No data to export", "warning");
+        return;
+      }
+      const headers = COLUMN_HEADERS;
+      const rows = assemblyData.map(item => [
+        escapeCSV(item.assembly),
+        escapeCSV(item.part || ""),
+        item.progress,
+        item.created ? "Yes" : "No",
+        item.checked ? "Yes" : "No",
+        item.lastUpdate
+      ].join(","));
+      const csv = [headers.join(","), ...rows].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "assembly-data.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast("CSV exported", "success");
+    }
+
+    function escapeCSV(value) {
+      value = value === undefined || value === null ? "" : String(value);
+      const needsQuotes = /[",\n]/.test(value);
+      const escaped = value.replace(/"/g, '""');
+      return needsQuotes ? `"${escaped}"` : escaped;
+    }
+
+    function normalizeProgress(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return 0;
+      return Math.min(100, Math.max(0, num));
+    }
+
+    function parseBooleanValue(value) {
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value !== 0;
+      if (value === null || value === undefined) return false;
+      const text = value.toString().trim().toLowerCase();
+      const truthy = ["yes", "true", "1", "y", "ja", "wahr", "نعم", "oui", "si"];
+      return truthy.includes(text);
+    }
+
+    function normalizeDateValue(value) {
+      if (value === undefined || value === null || value === "") {
+        return new Date().toISOString();
+      }
+      if (typeof value === "number" && Number.isFinite(value)) {
+        const base = Date.UTC(1899, 11, 30);
+        const millis = Math.round(value * 86400000);
+        return new Date(base + millis).toISOString();
+      }
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+      return new Date().toISOString();
+    }
+
+    function applyImportedRows(rows) {
+      if (!rows || !rows.length) {
+        return { updated: 0, added: 0, processed: 0 };
+      }
+      const expected = COLUMN_HEADERS;
+      const first = rows[0];
+      const missing = expected.filter(key => !(key in first));
+      if (missing.length) {
+        throw new Error("Unexpected column layout");
+      }
+      let updated = 0;
+      let added = 0;
+      rows.forEach(record => {
+        const assemblyRaw = record[expected[0]];
+        if (assemblyRaw === undefined || assemblyRaw === null || assemblyRaw === "") return;
+        const assembly = assemblyRaw.toString().trim();
+        if (!assembly) return;
+        const partRaw = record[expected[1]];
+        const part = partRaw === undefined || partRaw === null ? "" : partRaw.toString().trim();
+        const progress = normalizeProgress(record[expected[2]]);
+        const created = parseBooleanValue(record[expected[3]]);
+        const checked = parseBooleanValue(record[expected[4]]);
+        const lastUpdate = normalizeDateValue(record[expected[5]]);
+        const payload = { assembly, part, progress, created, checked, lastUpdate };
+        const existingIndex = assemblyData.findIndex(item => item.assembly.toLowerCase() === assembly.toLowerCase());
+        if (existingIndex > -1) {
+          assemblyData[existingIndex] = payload;
+          updated++;
+        } else {
+          assemblyData.push(payload);
+          added++;
+        }
+      });
+      saveToStorage();
+      renderTable();
+      return { updated, added, processed: updated + added };
+    }
+
+    function exportToExcel() {
+      if (!assemblyData.length) {
+        showToast("No data to export", "warning");
+        return;
+      }
+      if (window.XLSX && XLSX.utils && XLSX.utils.json_to_sheet) {
+        const rows = assemblyData.map(item => ({
+          [COLUMN_HEADERS[0]]: item.assembly,
+          [COLUMN_HEADERS[1]]: item.part || "",
+          [COLUMN_HEADERS[2]]: item.progress,
+          [COLUMN_HEADERS[3]]: item.created ? "Yes" : "No",
+          [COLUMN_HEADERS[4]]: item.checked ? "Yes" : "No",
+          [COLUMN_HEADERS[5]]: item.lastUpdate
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(rows, { header: COLUMN_HEADERS });
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Assemblies");
+        const workbookArray = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([workbookArray], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "assembly-data.xlsx";
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast("Excel exported", "success");
+        return;
+      }
+      const workbookArray = buildXLSXFile(assemblyData);
+      const blob = new Blob([workbookArray], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "assembly-data.xlsx";
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Excel exported", "success");
+    }
+
+    function importFromExcel(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async function(evt) {
+        try {
+          const arrayBuffer = evt.target.result;
+          if (window.XLSX && XLSX.read) {
+            const workbook = XLSX.read(arrayBuffer, { type: "array" });
+            const preferredSheet = workbook.SheetNames.find(name => name.toLowerCase() === "assemblies") || workbook.SheetNames[0];
+            if (!preferredSheet) throw new Error("Worksheet missing");
+            const sheet = workbook.Sheets[preferredSheet];
+            const headerRow = (XLSX.utils.sheet_to_json(sheet, { header: 1, range: 0, raw: false })[0] || []).map(cell =>
+              cell === undefined || cell === null ? "" : cell.toString()
+            );
+            const headerMismatch = COLUMN_HEADERS.some((title, idx) => headerRow[idx] !== title);
+            if (headerMismatch) {
+              throw new Error("Unexpected column layout");
+            }
+            const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+            const normalizedRows = rawRows.map(row => {
+              const mapped = {};
+              COLUMN_HEADERS.forEach(header => {
+                mapped[header] = header in row ? row[header] : "";
+              });
+              return mapped;
+            });
+            const result = applyImportedRows(normalizedRows);
+            if (result.processed) {
+              showToast(`${result.updated} updated, ${result.added} added`, "success");
+            } else {
+              showToast("No changes detected", "info");
+            }
+          } else {
+            const data = new Uint8Array(arrayBuffer);
+            const files = await unzipEntries(data);
+            const worksheet = files["xl/worksheets/sheet1.xml"];
+            if (!worksheet) throw new Error("Worksheet missing");
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(utf8Decoder.decode(worksheet), "application/xml");
+            const rows = Array.from(xml.getElementsByTagName("row"));
+            if (!rows.length) throw new Error("No rows found");
+            const headers = [];
+            const firstRowCells = Array.from(rows[0].getElementsByTagName("c"));
+            firstRowCells.forEach(cell => headers.push(readCell(cell)));
+            const expected = COLUMN_HEADERS;
+            const headerMismatch = expected.some((title, idx) => headers[idx] !== title);
+            if (headerMismatch) {
+              throw new Error("Unexpected column layout");
+            }
+            const importedRows = [];
+            for (let i = 1; i < rows.length; i++) {
+              const cells = Array.from(rows[i].getElementsByTagName("c"));
+              const values = new Array(expected.length).fill("");
+              cells.forEach(cell => {
+                const ref = cell.getAttribute("r") || "";
+                const column = ref.replace(/\d+/g, "");
+                const columnIndex = columnLetterToIndex(column);
+                values[columnIndex] = readCell(cell);
+              });
+              const record = {};
+              expected.forEach((header, idx) => {
+                record[header] = values[idx];
+              });
+              importedRows.push(record);
+            }
+            const result = applyImportedRows(importedRows);
+            if (result.processed) {
+              showToast(`${result.updated} updated, ${result.added} added`, "success");
+            } else {
+              showToast("No changes detected", "info");
+            }
+          }
+        } catch (error) {
+          console.error(error);
+          showToast(error.message || "Import failed", "error");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function readCell(cell) {
+      const type = cell.getAttribute("t");
+      if (type === "inlineStr") {
+        const textNode = cell.getElementsByTagName("t")[0];
+        return textNode ? textNode.textContent : "";
+      }
+      const valueNode = cell.getElementsByTagName("v")[0];
+      return valueNode ? valueNode.textContent : "";
+    }
+
+    function columnLetterToIndex(letter) {
+      let result = 0;
+      for (let i = 0; i < letter.length; i++) {
+        result *= 26;
+        result += letter.charCodeAt(i) - 64;
+      }
+      return result - 1;
+    }
+
+    function buildXLSXFile(dataRows) {
+      const worksheetXML = buildWorksheetXML(dataRows);
+      const files = [
+        { name: "[Content_Types].xml", data: utf8Encoder.encode(buildContentTypesXML()) },
+        { name: "_rels/.rels", data: utf8Encoder.encode(buildRootRelsXML()) },
+        { name: "xl/workbook.xml", data: utf8Encoder.encode(buildWorkbookXML()) },
+        { name: "xl/_rels/workbook.xml.rels", data: utf8Encoder.encode(buildWorkbookRelsXML()) },
+        { name: "xl/styles.xml", data: utf8Encoder.encode(buildStylesXML()) },
+        { name: "xl/worksheets/sheet1.xml", data: utf8Encoder.encode(worksheetXML) }
+      ];
+      return createZip(files);
+    }
+
+    function buildContentTypesXML() {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+  <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+    }
+
+    function buildRootRelsXML() {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+    }
+
+    function buildWorkbookXML() {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <sheets>
+    <sheet name="Assemblies" sheetId="1" r:id="rId1"/>
+  </sheets>
+</workbook>`;
+    }
+
+    function buildWorkbookRelsXML() {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+    }
+
+    function buildStylesXML() {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <fonts count="1">
+    <font>
+      <sz val="11"/>
+      <color theme="1"/>
+      <name val="Calibri"/>
+      <family val="2"/>
+    </font>
+  </fonts>
+  <fills count="1">
+    <fill>
+      <patternFill patternType="none"/>
+    </fill>
+  </fills>
+  <borders count="1">
+    <border>
+      <left/>
+      <right/>
+      <top/>
+      <bottom/>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+  </cellXfs>
+  <cellStyles count="1">
+    <cellStyle name="Normal" xfId="0" builtinId="0"/>
+  </cellStyles>
+</styleSheet>`;
+    }
+
+    function buildWorksheetXML(dataRows) {
+      const headers = COLUMN_HEADERS;
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>`;
+      xml += `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">`;
+      xml += `<sheetData>`;
+      xml += buildRowXML(1, headers);
+      dataRows.forEach((row, index) => {
+        const values = [
+          row.assembly,
+          row.part || "",
+          String(row.progress),
+          row.created ? "Yes" : "No",
+          row.checked ? "Yes" : "No",
+          row.lastUpdate
+        ];
+        xml += buildRowXML(index + 2, values);
+      });
+      xml += `</sheetData>`;
+      xml += `</worksheet>`;
+      return xml;
+    }
+
+    function buildRowXML(rowIndex, values) {
+      let row = `<row r="${rowIndex}">`;
+      values.forEach((value, idx) => {
+        const cellRef = `${indexToColumnLetter(idx)}${rowIndex}`;
+        if (value !== "" && !Number.isNaN(Number(value)) && Number(value) == value) {
+          row += `<c r="${cellRef}"><v>${value}</v></c>`;
+        } else {
+          row += `<c r="${cellRef}" t="inlineStr"><is><t>${escapeXML(value)}</t></is></c>`;
+        }
+      });
+      row += `</row>`;
+      return row;
+    }
+
+    function escapeXML(value) {
+      const text = value === undefined || value === null ? "" : String(value);
+      return text.replace(/[&<>"']/g, c => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&apos;"
+      })[c]);
+    }
+
+    function indexToColumnLetter(index) {
+      let letters = "";
+      let n = index + 1;
+      while (n > 0) {
+        const mod = (n - 1) % 26;
+        letters = String.fromCharCode(65 + mod) + letters;
+        n = Math.floor((n - mod - 1) / 26);
+      }
+      return letters;
+    }
+
+    const crcTable = (() => {
+      const table = new Uint32Array(256);
+      for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let k = 0; k < 8; k++) {
+          c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        }
+        table[i] = c >>> 0;
+      }
+      return table;
+    })();
+
+    function crc32(buf) {
+      let crc = -1;
+      for (let i = 0; i < buf.length; i++) {
+        crc = (crc >>> 8) ^ crcTable[(crc ^ buf[i]) & 0xff];
+      }
+      return (crc ^ -1) >>> 0;
+    }
+
+    function createZip(entries) {
+      const chunks = [];
+      const centralChunks = [];
+      let offset = 0;
+      entries.forEach(entry => {
+        const nameBytes = utf8Encoder.encode(entry.name);
+        const dataBytes = entry.data instanceof Uint8Array ? entry.data : utf8Encoder.encode(entry.data);
+        const crc = crc32(dataBytes);
+        const localHeader = new Uint8Array(30 + nameBytes.length);
+        const localView = new DataView(localHeader.buffer);
+        localView.setUint32(0, 0x04034b50, true);
+        localView.setUint16(4, 20, true);
+        localView.setUint16(6, 0, true);
+        localView.setUint16(8, 0, true);
+        localView.setUint16(10, 0, true);
+        localView.setUint16(12, 0, true);
+        localView.setUint32(14, crc, true);
+        localView.setUint32(18, dataBytes.length, true);
+        localView.setUint32(22, dataBytes.length, true);
+        localView.setUint16(26, nameBytes.length, true);
+        localView.setUint16(28, 0, true);
+        localHeader.set(nameBytes, 30);
+        chunks.push(localHeader, dataBytes);
+
+        const centralHeader = new Uint8Array(46 + nameBytes.length);
+        const centralView = new DataView(centralHeader.buffer);
+        centralView.setUint32(0, 0x02014b50, true);
+        centralView.setUint16(4, 20, true);
+        centralView.setUint16(6, 20, true);
+        centralView.setUint16(8, 0, true);
+        centralView.setUint16(10, 0, true);
+        centralView.setUint16(12, 0, true);
+        centralView.setUint32(16, crc, true);
+        centralView.setUint32(20, dataBytes.length, true);
+        centralView.setUint32(24, dataBytes.length, true);
+        centralView.setUint16(28, nameBytes.length, true);
+        centralView.setUint16(30, 0, true);
+        centralView.setUint16(32, 0, true);
+        centralView.setUint16(34, 0, true);
+        centralView.setUint16(36, 0, true);
+        centralView.setUint32(38, 0, true);
+        centralView.setUint32(42, offset, true);
+        centralHeader.set(nameBytes, 46);
+        centralChunks.push(centralHeader);
+
+        offset += localHeader.length + dataBytes.length;
+      });
+
+      const centralSize = centralChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const end = new Uint8Array(22);
+      const endView = new DataView(end.buffer);
+      endView.setUint32(0, 0x06054b50, true);
+      endView.setUint16(4, 0, true);
+      endView.setUint16(6, 0, true);
+      endView.setUint16(8, entries.length, true);
+      endView.setUint16(10, entries.length, true);
+      endView.setUint32(12, centralSize, true);
+      endView.setUint32(16, offset, true);
+      endView.setUint16(20, 0, true);
+
+      const totalSize = chunks.reduce((sum, chunk) => sum + chunk.length, 0) + centralSize + end.length;
+      const zipArray = new Uint8Array(totalSize);
+      let pointer = 0;
+      chunks.forEach(chunk => {
+        zipArray.set(chunk, pointer);
+        pointer += chunk.length;
+      });
+      centralChunks.forEach(chunk => {
+        zipArray.set(chunk, pointer);
+        pointer += chunk.length;
+      });
+      zipArray.set(end, pointer);
+      return zipArray;
+    }
+
+    async function unzipEntries(array) {
+      const view = new DataView(array.buffer, array.byteOffset, array.byteLength);
+      let eocd = -1;
+      for (let i = array.length - 22; i >= 0; i--) {
+        if (view.getUint32(i, true) === 0x06054b50) {
+          eocd = i;
+          break;
+        }
+      }
+      if (eocd === -1) throw new Error("Invalid ZIP format");
+      const totalEntries = view.getUint16(eocd + 10, true);
+      const centralDirOffset = view.getUint32(eocd + 16, true);
+      let pointer = centralDirOffset;
+      const files = {};
+      for (let i = 0; i < totalEntries; i++) {
+        if (view.getUint32(pointer, true) !== 0x02014b50) break;
+        const generalPurpose = view.getUint16(pointer + 8, true);
+        const compressionMethod = view.getUint16(pointer + 10, true);
+        const compressedSize = view.getUint32(pointer + 20, true);
+        const uncompressedSize = view.getUint32(pointer + 24, true);
+        const nameLength = view.getUint16(pointer + 28, true);
+        const extraLength = view.getUint16(pointer + 30, true);
+        const commentLength = view.getUint16(pointer + 32, true);
+        const localHeaderOffset = view.getUint32(pointer + 42, true);
+        const nameBytes = array.slice(pointer + 46, pointer + 46 + nameLength);
+        const name = utf8Decoder.decode(nameBytes);
+        files[name] = await readLocalFile(array, localHeaderOffset, {
+          compressionMethod,
+          compressedSize,
+          uncompressedSize,
+          generalPurpose
+        });
+        pointer += 46 + nameLength + extraLength + commentLength;
+      }
+      return files;
+    }
+
+    async function readLocalFile(array, offset, meta = {}) {
+      const view = new DataView(array.buffer, array.byteOffset, array.byteLength);
+      if (view.getUint32(offset, true) !== 0x04034b50) throw new Error("Invalid local header");
+      const flags = view.getUint16(offset + 6, true);
+      const method = view.getUint16(offset + 8, true);
+      const nameLength = view.getUint16(offset + 26, true);
+      const extraLength = view.getUint16(offset + 28, true);
+      let size = view.getUint32(offset + 18, true);
+      if (flags & 0x0008) {
+        size = meta.compressedSize || size;
+      }
+      const start = offset + 30 + nameLength + extraLength;
+      const raw = array.slice(start, start + size);
+      if (method === 0) {
+        return raw;
+      }
+      if (method === 8) {
+        return await decompressDeflate(raw);
+      }
+      throw new Error("Unsupported compression");
+    }
+
+    async function decompressDeflate(data) {
+      if (typeof DecompressionStream === "function") {
+        const stream = new DecompressionStream("deflate-raw");
+        const writer = stream.writable.getWriter();
+        await writer.write(data);
+        await writer.close();
+        const reader = stream.readable.getReader();
+        const chunks = [];
+        let total = 0;
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) {
+            const chunk = new Uint8Array(value);
+            chunks.push(chunk);
+            total += chunk.length;
+          }
+        }
+        const result = new Uint8Array(total);
+        let offset = 0;
+        chunks.forEach(chunk => {
+          result.set(chunk, offset);
+          offset += chunk.length;
+        });
+        return result;
+      }
+      throw new Error("Deflate decompression not supported. Please use a modern browser or import CSV instead.");
+    }
+
+    function searchRecordsOnEnter(event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        searchRecords();
+      }
+    }
+
+    function switchLanguage(lang) {
+      currentLanguage = lang;
+      const dict = translations[lang];
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (dict[key]) {
+          el.textContent = dict[key];
+        }
+      });
+      document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+        const key = el.getAttribute("data-i18n-placeholder");
+        if (dict[key]) {
+          el.setAttribute("placeholder", dict[key]);
+        }
+      });
+      updateFilterButton();
+      if (lang === "ar") {
+        document.documentElement.lang = "ar";
+        document.documentElement.dir = "rtl";
+        document.body.classList.add("rtl");
+      } else {
+        document.documentElement.lang = lang;
+        document.documentElement.dir = "ltr";
+        document.body.classList.remove("rtl");
+      }
+      renderTable();
+    }
+
+    document.getElementById("assemblyForm").addEventListener("submit", saveRecord);
+    document.getElementById("clearBtn").addEventListener("click", clearForm);
+    document.getElementById("searchBtn").addEventListener("click", searchRecords);
+    document.getElementById("filterBtn").addEventListener("click", toggleFilter);
+    document.getElementById("exportCsvBtn").addEventListener("click", exportToCSV);
+    document.getElementById("exportExcelBtn").addEventListener("click", exportToExcel);
+    document.getElementById("importBtn").addEventListener("click", () => fileInput.click());
+    fileInput.addEventListener("change", event => {
+      const file = event.target.files[0];
+      if (file) {
+        importFromExcel(file);
+      }
+      event.target.value = "";
+    });
+    progressInput.addEventListener("input", updateProgressPreview);
+    searchInput.addEventListener("keydown", searchRecordsOnEnter);
+    languageSelector.addEventListener("change", event => switchLanguage(event.target.value));
+    document.querySelectorAll("th.sortable").forEach(th => th.addEventListener("click", handleSort));
+
+    loadData();
+    updateProgressPreview();
+    renderTable();
+    switchLanguage("en");
+  </script>
+</body>
+</html>
