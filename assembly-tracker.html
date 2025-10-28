@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assembly Progress Tracker</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg-color: #f2f4f7;
+    --card-bg: #ffffff;
+    --accent: #1f6feb;
+    --text-color: #1f2933;
+    --muted-text: #61708a;
+    --border-color: #d0d7de;
+    --danger-bg: #ffe5e5;
+    --warning-bg: #fff6d6;
+    --success-bg: #e4f7e1;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.4;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background: var(--card-bg);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .language-select {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    color: var(--muted-text);
+  }
+
+  select {
+    padding: 0.45rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    font-size: 0.95rem;
+  }
+
+  main {
+    padding: 2rem;
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+  }
+
+  .form-grid {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="search"] {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    font-size: 1rem;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .field {
+    flex: 1 1 200px;
+  }
+
+  .checkbox-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .checkbox-group label {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    gap: 0.5rem;
+  }
+
+  .button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  button {
+    padding: 0.65rem 1.2rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  button.secondary {
+    background: #e2e8f0;
+    color: var(--text-color);
+  }
+
+  button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(31, 111, 235, 0.3);
+  }
+
+  button.secondary:hover {
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.1);
+  }
+
+  .progress-preview {
+    height: 8px;
+    border-radius: 999px;
+    background: #d1d9e6;
+    overflow: hidden;
+  }
+
+  .progress-preview span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width 0.3s ease;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--card-bg);
+    padding: 0.75rem;
+    text-align: left;
+    font-size: 0.9rem;
+    color: var(--muted-text);
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: inset 0 -2px 0 rgba(15, 23, 42, 0.08);
+    cursor: pointer;
+  }
+
+  tbody td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #eef1f6;
+    font-size: 0.95rem;
+  }
+
+  tbody tr {
+    transition: background 0.15s ease;
+  }
+
+  tbody tr:hover {
+    background: rgba(31, 111, 235, 0.05);
+  }
+
+  .progress-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .progress-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(31, 111, 235, 0.12);
+    overflow: hidden;
+  }
+
+  .progress-bar span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #e2e8f0;
+  }
+
+  .table-wrapper {
+    overflow: auto;
+    max-height: 520px;
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 1rem;
+  }
+
+  .pagination button {
+    background: #e2e8f0;
+    color: var(--text-color);
+    box-shadow: none;
+  }
+
+  .toast-container {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    z-index: 999;
+  }
+
+  .toast {
+    background: var(--card-bg);
+    border-left: 4px solid var(--accent);
+    padding: 0.8rem 1.1rem;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+    font-size: 0.95rem;
+    min-width: 220px;
+  }
+
+  .search-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .search-row input[type="search"] {
+    flex: 1 1 220px;
+  }
+
+  .badge-yes {
+    color: #166534;
+    background: rgba(22, 101, 52, 0.15);
+  }
+
+  .badge-no {
+    color: #9a3412;
+    background: rgba(234, 88, 12, 0.15);
+  }
+
+  .rtl {
+    direction: rtl;
+  }
+
+  .rtl table thead th,
+  .rtl table tbody td {
+    text-align: right;
+  }
+
+  @media (max-width: 900px) {
+    main {
+      padding: 1.5rem;
+    }
+
+    header {
+      padding: 1rem 1.5rem;
+    }
+
+    .button-row {
+      justify-content: flex-start;
+    }
+  }
+</style>
+<!-- SheetJS CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha512-VTGtFGqlsgBbpMbgRGoBvrTrvCdHD+y3df13QXTrWUw42Ry6j3eR5F+8qQNWnN7Wp+l3rhMddRInQxAPZjQK5Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+<header>
+  <h1 data-i18n="title">Assembly Progress Tracker</h1>
+  <div class="language-select">
+    <label for="language" data-i18n="language">Language</label>
+    <select id="language">
+      <option value="en">English</option>
+      <option value="de">Deutsch</option>
+      <option value="ar">العربية</option>
+    </select>
+  </div>
+</header>
+
+<main>
+  <section class="card" id="form-section">
+    <div class="form-grid">
+      <div class="form-row">
+        <div class="field">
+          <label for="assembly" data-i18n="assembly">Assembly Number</label>
+          <input type="text" id="assembly" required>
+        </div>
+        <div class="field">
+          <label for="part" data-i18n="part">Part Number</label>
+          <input type="text" id="part">
+        </div>
+        <div class="field">
+          <label for="progress" data-i18n="progress">Progress (%)</label>
+          <input type="number" id="progress" min="0" max="100" value="0">
+          <div class="progress-preview"><span id="progress-preview-bar"></span></div>
+        </div>
+      </div>
+      <div class="checkbox-group">
+        <label><input type="checkbox" id="created"> <span data-i18n="created">Drawing Created</span></label>
+        <label><input type="checkbox" id="checked"> <span data-i18n="checked">Drawing Checked</span></label>
+      </div>
+      <div class="search-row">
+        <input type="search" id="search-input" placeholder="Search..." aria-label="Search records">
+        <button type="button" class="secondary" id="search-btn" data-i18n="search">Search</button>
+        <button type="button" class="secondary" id="filter-btn" data-i18n="filter">Filter</button>
+      </div>
+      <div class="button-row">
+        <button type="button" id="save-btn" data-i18n="save">Save / Update</button>
+        <button type="button" class="secondary" id="clear-btn" data-i18n="clear">Clear Form</button>
+        <button type="button" class="secondary" id="import-btn" data-i18n="import">Import Excel</button>
+        <button type="button" class="secondary" id="export-btn" data-i18n="export">Export Excel</button>
+        <button type="button" class="secondary" id="export-csv-btn" data-i18n="exportCSV">Export CSV</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="table-wrapper">
+      <table id="records-table">
+        <thead>
+          <tr>
+            <th data-key="assembly" data-i18n="assembly">Assembly Number</th>
+            <th data-key="part" data-i18n="part">Part Number</th>
+            <th data-key="progress" data-i18n="progress">Progress (%)</th>
+            <th data-key="created" data-i18n="created">Drawing Created</th>
+            <th data-key="checked" data-i18n="checked">Drawing Checked</th>
+            <th data-key="lastUpdate" data-i18n="lastUpdate">Last Update</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </section>
+</main>
+
+<div class="toast-container" id="toast-container"></div>
+<input type="file" id="file-input" accept=".xlsx,.xls" style="display:none">
+
+<script>
+  const translations = {
+    en: {
+      title: "Assembly Progress Tracker",
+      language: "Language",
+      assembly: "Assembly Number",
+      part: "Part Number",
+      progress: "Progress (%)",
+      created: "Drawing Created",
+      checked: "Drawing Checked",
+      save: "Save / Update",
+      clear: "Clear Form",
+      search: "Search",
+      filter: "Filter",
+      import: "Import Excel",
+      export: "Export Excel",
+      exportCSV: "Export CSV",
+      lastUpdate: "Last Update",
+      filterStateAll: "Filter: All",
+      filterStateCreated: "Filter: Created",
+      filterStateChecked: "Filter: Checked",
+      filterStateBoth: "Filter: Created & Checked",
+      toastSaved: "Record saved successfully.",
+      toastUpdated: "Record updated successfully.",
+      toastCleared: "Form cleared.",
+      toastValidation: "Please provide a valid assembly number and progress between 0 and 100.",
+      toastImportSummary: (updated, added) => `${updated} updated, ${added} added`,
+      toastImportError: "Import failed. Please ensure the file is a valid Excel document.",
+      toastExportError: "Excel export unavailable. Please try CSV export instead.",
+      toastCSVExported: "CSV exported.",
+      placeholderSearch: "Search..."
+    },
+    de: {
+      title: "Baugruppen-Fortschrittsverfolgung",
+      language: "Sprache",
+      assembly: "Baugruppennummer",
+      part: "Teilenummer",
+      progress: "Fortschritt (%)",
+      created: "Zeichnung erstellt",
+      checked: "Zeichnung geprüft",
+      save: "Speichern / Aktualisieren",
+      clear: "Formular löschen",
+      search: "Suchen",
+      filter: "Filter",
+      import: "Excel importieren",
+      export: "Excel exportieren",
+      exportCSV: "CSV exportieren",
+      lastUpdate: "Letzte Aktualisierung",
+      filterStateAll: "Filter: Alle",
+      filterStateCreated: "Filter: Erstellt",
+      filterStateChecked: "Filter: Geprüft",
+      filterStateBoth: "Filter: Erstellt & Geprüft",
+      toastSaved: "Datensatz erfolgreich gespeichert.",
+      toastUpdated: "Datensatz erfolgreich aktualisiert.",
+      toastCleared: "Formular geleert.",
+      toastValidation: "Bitte geben Sie eine gültige Baugruppennummer und einen Fortschritt zwischen 0 und 100 ein.",
+      toastImportSummary: (updated, added) => `${updated} aktualisiert, ${added} hinzugefügt`,
+      toastImportError: "Import fehlgeschlagen. Bitte stellen Sie sicher, dass es eine gültige Excel-Datei ist.",
+      toastExportError: "Excel-Export nicht verfügbar. Bitte versuchen Sie den CSV-Export.",
+      toastCSVExported: "CSV exportiert.",
+      placeholderSearch: "Suchen..."
+    },
+    ar: {
+      title: "متابعة تقدم التجميعات",
+      language: "اللغة",
+      assembly: "رقم التجميعة",
+      part: "رقم القطعة",
+      progress: "نسبة الإنجاز (%)",
+      created: "تم إنشاء المخطط",
+      checked: "تم تدقيق المخطط",
+      save: "حفظ / تحديث",
+      clear: "مسح الحقول",
+      search: "بحث",
+      filter: "تصفية",
+      import: "استيراد Excel",
+      export: "تصدير Excel",
+      exportCSV: "تصدير CSV",
+      lastUpdate: "آخر تحديث",
+      filterStateAll: "التصفية: الكل",
+      filterStateCreated: "التصفية: تم الإنشاء",
+      filterStateChecked: "التصفية: تم التدقيق",
+      filterStateBoth: "التصفية: تم الإنشاء والتدقيق",
+      toastSaved: "تم حفظ السجل بنجاح.",
+      toastUpdated: "تم تحديث السجل بنجاح.",
+      toastCleared: "تم مسح الحقول.",
+      toastValidation: "يرجى إدخال رقم تجميعة صحيح ونسبة إنجاز بين 0 و 100.",
+      toastImportSummary: (updated, added) => `${updated} تم تحديثها، ${added} تمت إضافتها`,
+      toastImportError: "فشل الاستيراد. تأكد من أن الملف بتنسيق Excel صالح.",
+      toastExportError: "يتعذر تصدير Excel. يرجى تجربة تصدير CSV.",
+      toastCSVExported: "تم تصدير CSV.",
+      placeholderSearch: "...بحث"
+    }
+  };
+
+  const rowsPerPage = 10;
+  let assemblyData = [];
+  let filteredData = [];
+  let currentSort = { key: 'lastUpdate', direction: 'desc' };
+  let currentPage = 1;
+  let filterState = 'all'; // all, created, checked, both
+  let currentLanguage = 'en';
+
+  const elements = {
+    assembly: document.getElementById('assembly'),
+    part: document.getElementById('part'),
+    progress: document.getElementById('progress'),
+    created: document.getElementById('created'),
+    checked: document.getElementById('checked'),
+    saveBtn: document.getElementById('save-btn'),
+    clearBtn: document.getElementById('clear-btn'),
+    searchBtn: document.getElementById('search-btn'),
+    filterBtn: document.getElementById('filter-btn'),
+    importBtn: document.getElementById('import-btn'),
+    exportBtn: document.getElementById('export-btn'),
+    exportCsvBtn: document.getElementById('export-csv-btn'),
+    searchInput: document.getElementById('search-input'),
+    language: document.getElementById('language'),
+    progressPreview: document.getElementById('progress-preview-bar'),
+    tableBody: document.querySelector('#records-table tbody'),
+    pagination: document.getElementById('pagination'),
+    toastContainer: document.getElementById('toast-container'),
+    fileInput: document.getElementById('file-input')
+  };
+
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    elements.toastContainer.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.4s';
+      toast.addEventListener('transitionend', () => toast.remove());
+    }, 2200);
+  }
+
+  function loadData() {
+    const stored = localStorage.getItem('assemblyData');
+    if (stored) {
+      try {
+        assemblyData = JSON.parse(stored);
+      } catch (err) {
+        console.warn('Failed to parse stored data', err);
+        assemblyData = [];
+      }
+    }
+
+    if (!assemblyData.length) {
+      assemblyData = [
+        { assembly: 'ASM-1001', part: 'PRT-500', progress: 35, created: true, checked: false, lastUpdate: new Date().toISOString() },
+        { assembly: 'ASM-1002', part: 'PRT-501', progress: 68, created: true, checked: true, lastUpdate: new Date().toISOString() },
+        { assembly: 'ASM-1003', part: 'PRT-502', progress: 90, created: false, checked: false, lastUpdate: new Date().toISOString() }
+      ];
+      saveData();
+    }
+    filteredData = [...assemblyData];
+  }
+
+  function saveData() {
+    localStorage.setItem('assemblyData', JSON.stringify(assemblyData));
+  }
+
+  function clearForm() {
+    elements.assembly.value = '';
+    elements.part.value = '';
+    elements.progress.value = '0';
+    elements.created.checked = false;
+    elements.checked.checked = false;
+    updateProgressPreview();
+    showToast(translations[currentLanguage].toastCleared);
+  }
+
+  function updateProgressPreview() {
+    const value = Math.min(100, Math.max(0, Number(elements.progress.value) || 0));
+    elements.progressPreview.style.width = `${value}%`;
+  }
+
+  function validateForm() {
+    const assembly = elements.assembly.value.trim();
+    const progress = Number(elements.progress.value);
+    if (!assembly || Number.isNaN(progress) || progress < 0 || progress > 100) {
+      showToast(translations[currentLanguage].toastValidation);
+      return false;
+    }
+    return true;
+  }
+
+  function handleSave() {
+    if (!validateForm()) return;
+
+    const record = {
+      assembly: elements.assembly.value.trim(),
+      part: elements.part.value.trim(),
+      progress: Number(elements.progress.value) || 0,
+      created: elements.created.checked,
+      checked: elements.checked.checked,
+      lastUpdate: new Date().toISOString()
+    };
+
+    const index = assemblyData.findIndex(item => item.assembly.toLowerCase() === record.assembly.toLowerCase());
+    if (index > -1) {
+      assemblyData[index] = record;
+      showToast(translations[currentLanguage].toastUpdated);
+    } else {
+      assemblyData.push(record);
+      showToast(translations[currentLanguage].toastSaved);
+    }
+
+    saveData();
+    applyFiltersAndSearch();
+    renderTable();
+  }
+
+  function applyFiltersAndSearch() {
+    const query = elements.searchInput.value.trim().toLowerCase();
+    filteredData = assemblyData.filter(item => {
+      let matchesFilter = true;
+      if (filterState === 'created') matchesFilter = item.created;
+      else if (filterState === 'checked') matchesFilter = item.checked;
+      else if (filterState === 'both') matchesFilter = item.created && item.checked;
+      if (!matchesFilter) return false;
+
+      if (!query) return true;
+      return [item.assembly, item.part, item.lastUpdate].some(value =>
+        (value || '').toString().toLowerCase().includes(query)
+      );
+    });
+  }
+
+  function renderTable() {
+    sortData();
+    const start = (currentPage - 1) * rowsPerPage;
+    const pageData = filteredData.slice(start, start + rowsPerPage);
+
+    elements.tableBody.innerHTML = '';
+
+    pageData.forEach(item => {
+      const row = document.createElement('tr');
+      row.dataset.assembly = item.assembly;
+      row.style.background = item.progress < 50 ? 'var(--danger-bg)' : item.progress < 80 ? 'var(--warning-bg)' : 'var(--success-bg)';
+
+      row.innerHTML = `
+        <td>${item.assembly}</td>
+        <td>${item.part || '—'}</td>
+        <td>
+          <div class="progress-cell">
+            <span>${item.progress}%</span>
+            <div class="progress-bar"><span style="width:${item.progress}%"></span></div>
+          </div>
+        </td>
+        <td><span class="status-badge ${item.created ? 'badge-yes' : 'badge-no'}">${item.created ? 'Yes' : 'No'}</span></td>
+        <td><span class="status-badge ${item.checked ? 'badge-yes' : 'badge-no'}">${item.checked ? 'Yes' : 'No'}</span></td>
+        <td>${item.lastUpdate}</td>
+      `;
+      row.addEventListener('click', () => editRow(item.assembly));
+      elements.tableBody.appendChild(row);
+    });
+
+    renderPagination();
+    updateStatusBadgesLanguage();
+  }
+
+  function renderPagination() {
+    const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
+    currentPage = Math.min(currentPage, totalPages);
+    elements.pagination.innerHTML = '';
+
+    const info = document.createElement('span');
+    info.textContent = `${currentPage} / ${totalPages}`;
+
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '<';
+    prevBtn.disabled = currentPage === 1;
+    prevBtn.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTable();
+      }
+    });
+
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = '>';
+    nextBtn.disabled = currentPage === totalPages;
+    nextBtn.addEventListener('click', () => {
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderTable();
+      }
+    });
+
+    elements.pagination.append(prevBtn, info, nextBtn);
+  }
+
+  function sortData() {
+    const { key, direction } = currentSort;
+    filteredData.sort((a, b) => {
+      let valA = a[key];
+      let valB = b[key];
+      if (key === 'progress') {
+        valA = Number(valA);
+        valB = Number(valB);
+      }
+      if (key === 'created' || key === 'checked') {
+        valA = a[key] ? 1 : 0;
+        valB = b[key] ? 1 : 0;
+      }
+      if (valA < valB) return direction === 'asc' ? -1 : 1;
+      if (valA > valB) return direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  function editRow(assemblyId) {
+    const record = assemblyData.find(item => item.assembly === assemblyId);
+    if (!record) return;
+    elements.assembly.value = record.assembly;
+    elements.part.value = record.part;
+    elements.progress.value = record.progress;
+    elements.created.checked = record.created;
+    elements.checked.checked = record.checked;
+    updateProgressPreview();
+  }
+
+  function toggleFilter() {
+    if (filterState === 'all') filterState = 'created';
+    else if (filterState === 'created') filterState = 'checked';
+    else if (filterState === 'checked') filterState = 'both';
+    else filterState = 'all';
+    updateFilterButtonLabel();
+    applyFiltersAndSearch();
+    currentPage = 1;
+    renderTable();
+  }
+
+  function updateFilterButtonLabel() {
+    const map = {
+      all: 'filterStateAll',
+      created: 'filterStateCreated',
+      checked: 'filterStateChecked',
+      both: 'filterStateBoth'
+    };
+    elements.filterBtn.textContent = translations[currentLanguage][map[filterState]];
+  }
+
+  function updateStatusBadgesLanguage() {
+    const yesText = currentLanguage === 'ar' ? 'نعم' : currentLanguage === 'de' ? 'Ja' : 'Yes';
+    const noText = currentLanguage === 'ar' ? 'لا' : currentLanguage === 'de' ? 'Nein' : 'No';
+    document.querySelectorAll('.status-badge').forEach(badge => {
+      const isYes = badge.classList.contains('badge-yes');
+      badge.textContent = isYes ? yesText : noText;
+    });
+  }
+
+  function searchRecords() {
+    applyFiltersAndSearch();
+    currentPage = 1;
+    renderTable();
+  }
+
+  function handleTableSort(event) {
+    const key = event.target.getAttribute('data-key');
+    if (!key) return;
+    if (currentSort.key === key) {
+      currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort = { key, direction: 'asc' };
+    }
+    renderTable();
+  }
+
+  function switchLanguage(lang) {
+    currentLanguage = lang;
+    const dict = translations[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (dict[key]) {
+        el.textContent = dict[key];
+      }
+    });
+    elements.searchInput.placeholder = dict.placeholderSearch;
+    updateFilterButtonLabel();
+    updateStatusBadgesLanguage();
+
+    if (lang === 'ar') {
+      document.body.classList.add('rtl');
+      document.documentElement.setAttribute('dir', 'rtl');
+      document.documentElement.setAttribute('lang', 'ar');
+    } else {
+      document.body.classList.remove('rtl');
+      document.documentElement.setAttribute('dir', 'ltr');
+      document.documentElement.setAttribute('lang', lang);
+    }
+  }
+
+  function exportToExcel() {
+    if (typeof XLSX === 'undefined') {
+      showToast(translations[currentLanguage].toastExportError);
+      return;
+    }
+    const worksheetData = [
+      ['Assembly Number', 'Part Number', 'Progress (%)', 'Drawing Created', 'Drawing Checked', 'Last Update'],
+      ...assemblyData.map(item => [
+        item.assembly,
+        item.part,
+        item.progress,
+        item.created ? 'Yes' : 'No',
+        item.checked ? 'Yes' : 'No',
+        item.lastUpdate
+      ])
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Assemblies');
+    XLSX.writeFile(wb, 'assembly-data.xlsx');
+  }
+
+  function exportToCSV() {
+    const headers = ['Assembly Number', 'Part Number', 'Progress (%)', 'Drawing Created', 'Drawing Checked', 'Last Update'];
+    const rows = assemblyData.map(item => [
+      item.assembly,
+      item.part,
+      item.progress,
+      item.created ? 'Yes' : 'No',
+      item.checked ? 'Yes' : 'No',
+      item.lastUpdate
+    ]);
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${(cell ?? '').toString().replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'assembly-data.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+    showToast(translations[currentLanguage].toastCSVExported);
+  }
+
+  function importFromExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (typeof XLSX === 'undefined') {
+      showToast(translations[currentLanguage].toastExportError);
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+        let updated = 0;
+        let added = 0;
+        json.forEach(entry => {
+          if (!entry['Assembly Number']) return;
+          const record = {
+            assembly: String(entry['Assembly Number']).trim(),
+            part: String(entry['Part Number'] || '').trim(),
+            progress: Number(entry['Progress (%)']) || 0,
+            created: String(entry['Drawing Created']).toLowerCase() === 'yes',
+            checked: String(entry['Drawing Checked']).toLowerCase() === 'yes',
+            lastUpdate: entry['Last Update'] ? new Date(entry['Last Update']).toISOString() : new Date().toISOString()
+          };
+          const index = assemblyData.findIndex(item => item.assembly.toLowerCase() === record.assembly.toLowerCase());
+          if (index > -1) {
+            assemblyData[index] = record;
+            updated++;
+          } else {
+            assemblyData.push(record);
+            added++;
+          }
+        });
+        saveData();
+        applyFiltersAndSearch();
+        renderTable();
+        showToast(translations[currentLanguage].toastImportSummary(updated, added));
+      } catch (err) {
+        console.error(err);
+        showToast(translations[currentLanguage].toastImportError);
+      }
+      event.target.value = '';
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function setupEventListeners() {
+    elements.progress.addEventListener('input', updateProgressPreview);
+    elements.saveBtn.addEventListener('click', handleSave);
+    elements.clearBtn.addEventListener('click', clearForm);
+    elements.searchBtn.addEventListener('click', searchRecords);
+    elements.searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        searchRecords();
+      }
+    });
+    elements.filterBtn.addEventListener('click', toggleFilter);
+    elements.exportBtn.addEventListener('click', exportToExcel);
+    elements.exportCsvBtn.addEventListener('click', exportToCSV);
+    elements.importBtn.addEventListener('click', () => elements.fileInput.click());
+    elements.fileInput.addEventListener('change', importFromExcel);
+
+    document.querySelectorAll('#records-table thead th').forEach(th => {
+      th.addEventListener('click', handleTableSort);
+    });
+
+    elements.language.addEventListener('change', (e) => {
+      switchLanguage(e.target.value);
+      renderTable();
+    });
+  }
+
+  function init() {
+    loadData();
+    applyFiltersAndSearch();
+    updateProgressPreview();
+    setupEventListeners();
+    updateFilterButtonLabel();
+    renderTable();
+    switchLanguage(currentLanguage);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
