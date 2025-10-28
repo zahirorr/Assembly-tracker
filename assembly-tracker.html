@@ -53,6 +53,7 @@
       background: var(--card-bg);
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(15, 30, 60, 0.08);
+      gap: 16px;
     }
 
     header h1 {
@@ -69,6 +70,15 @@
       font-size: 0.95rem;
       color: var(--text-primary);
       width: 100%;
+    }
+
+    .language-selector {
+      width: auto;
+      min-width: 120px;
+      margin-left: auto;
+      flex-shrink: 0;
+      font-size: 0.9rem;
+      padding: 6px 10px;
     }
 
     .card {
@@ -139,6 +149,34 @@
       flex-wrap: wrap;
       gap: 10px;
       margin-top: 20px;
+    }
+
+    .created-by-field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .created-by-input-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .created-by-input-row input[type="text"] {
+      flex: 1 1 auto;
+    }
+
+    button.danger {
+      background: #fde8e8;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+      box-shadow: none;
+    }
+
+    button.danger:hover {
+      background: #fbd5d5;
+      transform: translateY(-1px);
     }
 
     button {
@@ -353,7 +391,7 @@
   <div class="app-container">
     <header>
       <h1 data-i18n="title">Assembly Progress Tracker</h1>
-      <select id="languageSelector">
+      <select id="languageSelector" class="language-selector">
         <option value="en">English</option>
         <option value="de">Deutsch</option>
         <option value="ar">العربية</option>
@@ -385,15 +423,19 @@
             <div class="progress-value" id="progressValue">0%</div>
             <div class="progress-visual"><span id="progressPreview"></span></div>
           </div>
-          <div>
-            <label for="createdBy" data-i18n="createdBy">Created By</label>
-            <select id="createdBy">
-              <option value="" data-i18n="createdByPlaceholder">Select creator</option>
-              <option value="Alice Johnson">Alice Johnson</option>
-              <option value="Mohammed Kareem">Mohammed Kareem</option>
-              <option value="Lena Fischer">Lena Fischer</option>
-              <option value="Project Team">Project Team</option>
-            </select>
+          <div class="created-by-field">
+            <label for="createdByInput" data-i18n="createdBy">Created By</label>
+            <div class="created-by-input-row">
+              <input
+                type="text"
+                id="createdByInput"
+                list="createdByList"
+                data-i18n-placeholder="createdByPlaceholder"
+                placeholder="Select creator"
+              />
+              <button type="button" id="deleteCreatorBtn" class="danger" data-i18n="deleteCreator">Delete Name</button>
+            </div>
+            <datalist id="createdByList"></datalist>
           </div>
           <div>
             <label for="createdDate" data-i18n="createdDate">Created Date</label>
@@ -471,6 +513,7 @@
         progress: "Progress (%)",
         createdBy: "Created By",
         createdByPlaceholder: "Select creator",
+        deleteCreator: "Delete Name",
         createdDate: "Created Date",
         drawingStatus: "Drawing Status",
         created: "Drawing Created",
@@ -512,6 +555,7 @@
         progress: "Fortschritt (%)",
         createdBy: "Erstellt von",
         createdByPlaceholder: "Ersteller auswählen",
+        deleteCreator: "Namen löschen",
         createdDate: "Erstellungsdatum",
         drawingStatus: "Zeichnungsstatus",
         created: "Zeichnung erstellt",
@@ -553,6 +597,7 @@
         progress: "نسبة الإنجاز (%)",
         createdBy: "تم الإنشاء بواسطة",
         createdByPlaceholder: "اختر المنشئ",
+        deleteCreator: "حذف الاسم",
         createdDate: "تاريخ الإنشاء",
         drawingStatus: "حالة المخطط",
         created: "تم إنشاء المخطط",
@@ -596,6 +641,9 @@
     let searchTerm = "";
     let filterMode = "all";
     let currentLanguage = "en";
+    const DEFAULT_CREATORS = ["Alice Johnson", "Mohammed Kareem", "Lena Fischer", "Project Team"];
+    const CREATOR_STORAGE_KEY = "assemblyCreators";
+    let creatorNames = [];
     const FILE_TYPE_VALUES = ["assembly", "part", "drawing"];
     const DEFAULT_FILE_TYPE = FILE_TYPE_VALUES[0];
     const FILE_TYPE_TRANSLATION_KEYS = {
@@ -628,7 +676,9 @@
     const languageSelector = document.getElementById("languageSelector");
     const fileInput = document.getElementById("fileInput");
     const fileTypeSelect = document.getElementById("fileType");
-    const createdBySelect = document.getElementById("createdBy");
+    const createdByInput = document.getElementById("createdByInput");
+    const createdByList = document.getElementById("createdByList");
+    const deleteCreatorBtn = document.getElementById("deleteCreatorBtn");
     const createdDateInput = document.getElementById("createdDate");
     const utf8Encoder = new TextEncoder();
     const utf8Decoder = new TextDecoder();
@@ -644,6 +694,106 @@
       "Last Update"
     ];
     const OPTIONAL_COLUMN_HEADERS = ["Created By", "Created Date"];
+
+    function normalizeCreatorName(value) {
+      if (value === undefined || value === null) {
+        return "";
+      }
+      return value.toString().trim();
+    }
+
+    function renderCreatorList() {
+      if (!createdByList) return;
+      createdByList.innerHTML = "";
+      creatorNames.forEach(name => {
+        const option = document.createElement("option");
+        option.value = name;
+        createdByList.appendChild(option);
+      });
+    }
+
+    function saveCreatorNames() {
+      if (typeof localStorage === "undefined") {
+        return;
+      }
+      try {
+        localStorage.setItem(CREATOR_STORAGE_KEY, JSON.stringify(creatorNames));
+      } catch (error) {
+        // Ignore storage errors (e.g., quota exceeded)
+      }
+    }
+
+    function loadCreatorNames() {
+      if (typeof localStorage === "undefined") {
+        creatorNames = [...DEFAULT_CREATORS].sort((a, b) => a.localeCompare(b));
+        renderCreatorList();
+        return;
+      }
+      let storedNames = [];
+      let hasStoredList = false;
+      try {
+        const raw = localStorage.getItem(CREATOR_STORAGE_KEY);
+        if (raw !== null) {
+          hasStoredList = true;
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            storedNames = parsed.map(normalizeCreatorName).filter(Boolean);
+          } else {
+            hasStoredList = false;
+          }
+        }
+      } catch (error) {
+        storedNames = [];
+        hasStoredList = false;
+      }
+      const dataNames = Array.isArray(assemblyData)
+        ? assemblyData.map(item => normalizeCreatorName(item.createdBy)).filter(Boolean)
+        : [];
+      const baseNames = hasStoredList ? storedNames : DEFAULT_CREATORS;
+      const unique = Array.from(
+        new Set([...baseNames, ...dataNames].map(name => normalizeCreatorName(name)).filter(Boolean))
+      );
+      unique.sort((a, b) => a.localeCompare(b));
+      creatorNames = unique;
+      renderCreatorList();
+    }
+
+    function addCreatorName(name, { silent = true } = {}) {
+      const normalized = normalizeCreatorName(name);
+      if (!normalized) return;
+      const exists = creatorNames.some(existing => existing.toLowerCase() === normalized.toLowerCase());
+      if (!exists) {
+        creatorNames.push(normalized);
+        creatorNames.sort((a, b) => a.localeCompare(b));
+        renderCreatorList();
+        saveCreatorNames();
+        if (!silent) {
+          showToast(`"${normalized}" added to creators`, "success");
+        }
+      }
+    }
+
+    function removeCreatorName(name) {
+      const normalized = normalizeCreatorName(name);
+      if (!normalized) {
+        showToast("Enter a name to delete", "warning");
+        return false;
+      }
+      const index = creatorNames.findIndex(existing => existing.toLowerCase() === normalized.toLowerCase());
+      if (index === -1) {
+        showToast("Name not found in list", "error");
+        return false;
+      }
+      creatorNames.splice(index, 1);
+      renderCreatorList();
+      saveCreatorNames();
+      showToast(`"${normalized}" removed from creators`, "success");
+      if (createdByInput) {
+        createdByInput.value = "";
+        createdByInput.focus();
+      }
+      return true;
+    }
 
     function updateProgressPreview() {
       const value = Math.max(0, Math.min(100, Number(progressInput.value) || 0));
@@ -945,8 +1095,8 @@
       progressInput.value = "0";
       updateProgressPreview();
       fileTypeSelect.value = DEFAULT_FILE_TYPE;
-      if (createdBySelect) {
-        createdBySelect.selectedIndex = 0;
+      if (createdByInput) {
+        createdByInput.value = "";
       }
       if (createdDateInput) {
         createdDateInput.value = getTodayDate();
@@ -962,7 +1112,7 @@
       const created = document.getElementById("drawingCreated").checked;
       const checked = document.getElementById("drawingChecked").checked;
       const fileType = normalizeFileType(fileTypeSelect.value);
-      const createdBy = createdBySelect ? createdBySelect.value.trim() : "";
+      const createdBy = createdByInput ? createdByInput.value.trim() : "";
       const createdDate = createdDateInput ? normalizeDateOnly(createdDateInput.value || getTodayDate()) : "";
 
       if (!assembly) {
@@ -995,6 +1145,9 @@
         showToast("Record saved", "success");
       }
       saveToStorage();
+      if (createdBy) {
+        addCreatorName(createdBy);
+      }
       renderTable();
       clearForm();
     }
@@ -1008,15 +1161,11 @@
       document.getElementById("drawingCreated").checked = !!record.created;
       document.getElementById("drawingChecked").checked = !!record.checked;
       fileTypeSelect.value = normalizeFileType(record.fileType);
-      if (createdBySelect) {
-        const exists = Array.from(createdBySelect.options).some(option => option.value === record.createdBy);
-        if (!exists && record.createdBy) {
-          const option = document.createElement("option");
-          option.value = record.createdBy;
-          option.textContent = record.createdBy;
-          createdBySelect.appendChild(option);
+      if (createdByInput) {
+        createdByInput.value = record.createdBy || "";
+        if (record.createdBy) {
+          addCreatorName(record.createdBy);
         }
-        createdBySelect.value = record.createdBy || "";
       }
       if (createdDateInput) {
         const normalized = toDateInputValue(record.createdDate) || getTodayDate();
@@ -1174,6 +1323,9 @@
         const createdDate = normalizeDateOnly(record[expected[7]]);
         const lastUpdate = normalizeDateValue(record[expected[8]]);
         const payload = { assembly, part, fileType, progress, created, checked, createdBy, createdDate, lastUpdate };
+        if (createdBy) {
+          addCreatorName(createdBy);
+        }
         const existingIndex = assemblyData.findIndex(item => item.assembly.toLowerCase() === assembly.toLowerCase());
         if (existingIndex > -1) {
           assemblyData[existingIndex] = payload;
@@ -1706,6 +1858,9 @@
     document.getElementById("exportCsvBtn").addEventListener("click", exportToCSV);
     document.getElementById("exportExcelBtn").addEventListener("click", exportToExcel);
     document.getElementById("importBtn").addEventListener("click", () => fileInput.click());
+    if (deleteCreatorBtn) {
+      deleteCreatorBtn.addEventListener("click", () => removeCreatorName(createdByInput ? createdByInput.value : ""));
+    }
     fileInput.addEventListener("change", event => {
       const file = event.target.files[0];
       if (file) {
@@ -1720,6 +1875,7 @@
     document.querySelectorAll("th.sortable").forEach(th => th.addEventListener("click", handleSort));
 
     loadData();
+    loadCreatorNames();
     if (createdDateInput) {
       createdDateInput.value = getTodayDate();
     }
